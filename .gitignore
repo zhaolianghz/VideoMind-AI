@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+apps/desktop/web/dist/
+
+# Rust / Tauri
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
+
+# Local data
+*.db
+*.db-journal
+*.sqlite3
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Sidecar 构建产物（由 scripts/build_sidecar.sh 生成，不提交）
+apps/desktop/src-tauri/bin/videomind-sidecar.tar.gz
+apps/desktop/src-tauri/bin/videomind-sidecar/

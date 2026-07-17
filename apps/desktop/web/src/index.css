@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: 'Geist Variable', -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-feature-settings: 'cv11', 'ss01';
+}
+
+@layer components {
+  .vm-input {
+    @apply w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-neutral-100 placeholder-neutral-500 focus:border-emerald-500/60 focus:outline-none transition-colors;
+  }
+  .vm-card {
+    @apply rounded-2xl border border-white/10 bg-gradient-to-br from-neutral-800/90 to-neutral-950/95 shadow-lg shadow-black/30 backdrop-blur-xl;
+  }
+}
