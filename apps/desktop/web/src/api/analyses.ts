@@ -14,3 +14,11 @@ export const getAnalysis = (id: string): Promise<Analysis> =>
 
 export const deleteAnalysis = (id: string): Promise<void> =>
   api.delete(`/analyses/${id}`).then(() => undefined)
+
+export const saveReport = (
+  id: string,
+  fmt: 'md' | 'html' | 'pdf',
+): Promise<{ path: string; filename: string }> =>
+  api
+    .post<{ path: string; filename: string }>(`/reports/${id}/save`, null, { params: { fmt } })
+    .then((r) => r.data)

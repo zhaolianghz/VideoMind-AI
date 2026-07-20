@@ -1,6 +1,7 @@
 """AI 分析编排：模板渲染 → 切片 → 单段或 map-reduce → JSON 解析校验（含 1 次容错重试）。"""
 import json
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -112,10 +113,14 @@ def run_analysis(
     provider: BaseLLMProvider,
     model: str,
     language: str = "zh",
+    on_progress: Callable[[int], None] | None = None,
 ) -> AnalysisOutcome:
+    """on_progress: 收到 0-100 进度（单段任务只有 5→100；map-reduce 按分片推进）。"""
     tpl: TemplateDef = TEMPLATES[template_name]
     chunks = chunk_text(transcript) or ["（无转录文本）"]
     hint = _lang_hint(language)
+    if on_progress:
+        on_progress(5)
 
     if len(chunks) == 1:
         messages = [
@@ -133,6 +138,9 @@ def run_analysis(
             Message("user", f"这是第 {idx}/{len(chunks)} 片段：\n\n{chunk}"),
         ]
         partials.append(provider.chat(messages, model=model).text)
+        if on_progress:
+            # map 阶段占 90%，reduce 占最后 10%
+            on_progress(5 + int(idx * 85 / len(chunks)))
 
     merged = "\n\n---\n\n".join(partials)
     messages = [

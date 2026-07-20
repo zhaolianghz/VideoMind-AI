@@ -1,0 +1,33 @@
+export const zh = {
+  brand: 'VideoMind AI',
+  tagline: '视频智研助手',
+  nav: {
+    dashboard: '工作台',
+    newTask: '新建分析',
+    library: '视频库',
+    reports: '报告中心',
+    providers: '模型服务商',
+    settings: '设置',
+  },
+  common: {
+    loading: '加载中…',
+    starting: '后端启动中…',
+    save: '保存',
+    cancel: '取消',
+    delete: '删除',
+    back: '返回',
+    view: '查看',
+    empty: '暂无数据',
+  },
+  dashboard: {
+    title: '工作台',
+    subtitle: 'AI 视频情报分析系统',
+    backend: '后端连接状态',
+    online: '在线',
+    offline: '未连接',
+    checking: '检测中…',
+    statAnalyzed: '已分析视频',
+    statQueue: '任务队列',
+    statKb: '知识库条目',
+  },
+}

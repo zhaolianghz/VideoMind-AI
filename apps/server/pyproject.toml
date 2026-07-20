@@ -10,6 +10,8 @@ dependencies = [
     "sqlmodel>=0.0.22",
     "pydantic-settings>=2.5",
     "yt-dlp>=2024.8.0",
+    "yt-dlp-ejs>=0.8",
+    "httpx>=0.27",
     "jinja2>=3.1",
 ]
 
@@ -20,6 +22,7 @@ llm = [
 ]
 asr = [
     "faster-whisper>=1.0.3",
+    "zhconv>=1.4",
 ]
 report = [
     "markdown>=3.7",

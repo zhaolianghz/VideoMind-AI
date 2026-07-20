@@ -4,7 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-VALID_TEMPLATES = ("summary", "keypoints", "business", "course", "viral")
+VALID_TEMPLATES = ("summary", "keypoints", "business", "course", "viral", "classify", "score", "deep", "comments", "recreate")
 
 
 class AnalyzeRequest(BaseModel):
@@ -19,11 +19,13 @@ class AnalyzeRequest(BaseModel):
 class AnalysisRead(BaseModel):
     id: str
     video_id: str
+    creator_id: str | None = None
     template: str
     provider_id: str
     model: str
     language: str
     status: str
+    progress: int = 0
     parsed: dict[str, Any]
     chunks: int
     error: str

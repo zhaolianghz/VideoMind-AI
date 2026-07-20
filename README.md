@@ -1,53 +1,114 @@
-# VideoMind AI · 视频智研助手
+<div align="center">
 
-> AI Video Intelligence OS —— 视频采集 → ASR → AI 分析 → 结构化报告 → 知识库
+# VideoMind AI
 
-状态：**P0 骨架搭建中**
+**AI Video Intelligence OS — Turn any video into structured insight.**
 
-## 目录结构
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![CI](https://github.com/lxw15337674/VideoMind-AI/actions/workflows/ci.yml/badge.svg)](.github/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org)
+[![Tauri](https://img.shields.io/badge/Tauri-2-orange.svg)](https://tauri.app)
+
+An open-source desktop agent that **collects** videos from major platforms, **transcribes** them locally, runs **deep AI analysis**, and produces **structured reports** — your AI video researcher.
+
+[Features](#-features) · [Quick Start](#-quick-start) · [Build App](#-build-the-desktop-app) · [Roadmap](#-roadmap) · [Docs](#-docs)
+
+</div>
+
+---
+
+## ✨ Features
+
+- 🎬 **Collect** — YouTube / Bilibili / Douyin / Kuaishou / Xiaohongshu / TikTok via `yt-dlp`, with batch mode + cookie import
+- 🎙️ **ASR** — local `faster-whisper` (GPU-accelerated, offline), auto model selection, SRT/VTT export
+- 🧠 **AI analysis** — multi-provider routing (OpenAI / Claude / Qwen / DeepSeek / MiniMax / Ollama …), 5 analysis templates (**summary / keypoints / business model / course breakdown / viral pattern**), map-reduce for long videos, reasoning-model aware (`<think>` blocks)
+- 📄 **Reports** — Markdown / PDF / HTML export with structured rendering
+- 🖥️ **Cross-platform desktop app** — Tauri 2 (Rust) + React, macOS / Windows
+- 🔒 **Local-first** — media, transcripts and API keys stay on your machine
+
+## 🧩 How it works
 
 ```
-VideoMind-AI/
-├── docs/              # PRD / 技术设计 / AI 引擎设计
-├── apps/
-│   ├── server/        # Python FastAPI 后端（AI 管线）
-│   └── desktop/       # Tauri (Rust) + React 桌面应用
-│       ├── web/       # React + Vite + TS 前端
-│       └── src-tauri/ # Rust 主进程
-├── scripts/
-├── docker-compose.yml # 开发用 Redis
-└── Makefile
+URL → yt-dlp collect → ffmpeg → wav → faster-whisper transcript
+    → multi-model AI analysis → structured JSON → MD / PDF report
 ```
 
-## 快速开始（开发模式）
+All running inside one desktop app — a Python backend (FastAPI) spawned as a sidecar, wrapped by a Tauri shell.
+
+## 🚀 Quick Start (development)
 
 ```bash
-# 1. 安装依赖
-make install
+# 1. Backend (Python 3.11+)
+cd apps/server
+pip install -e ".[dev]"
+uvicorn videomind.main:app --reload --port 18791
 
-# 2. （可选）起 Redis（P3 任务队列才需要）
-docker compose up -d redis
-
-# 3. 起后端
-make server            # http://127.0.0.1:18791  healthz: /api/v1/system/healthz
-
-# 4. 起前端（另开终端）
-make web               # http://localhost:1420  (API 走 vite proxy → 后端)
-
-# 5. 桌面壳（另开终端）
-make tauri
+# 2. Frontend (Node 20+) — another terminal
+cd apps/desktop/web
+npm install
+npm run dev    # → http://localhost:1420
 ```
 
-## 技术栈
+Open <http://localhost:1420> → **Providers** page add a model (e.g. an OpenAI-compatible endpoint) → **New Task** paste a video URL → collect → transcribe → analyze → export PDF.
 
-- **桌面壳**：Tauri 2 (Rust)
-- **前端**：React 18 + TypeScript + Vite + Tailwind
-- **后端**：Python 3.11 + FastAPI + SQLModel + SQLite
-- **任务队列（P3）**：Celery + Redis
-- **核心管线（P1-P2）**：yt-dlp / FFmpeg / faster-whisper / 多模型路由
+> Requires **FFmpeg** installed on your system (invoked as subprocess; not bundled).
 
-## 文档
+## 📦 Build the desktop app
 
-- [PRD](docs/PRD.md)
-- [技术设计](docs/TECH_DESIGN.md)
-- [AI 引擎设计](docs/AI_ENGINE_DESIGN.md)
+```bash
+# Pack the Python backend as a sidecar (includes whisper/weasyprint natives)
+./scripts/build_sidecar.sh
+
+# Build the Tauri bundle (.app / .dmg on macOS, .msi on Windows)
+cd apps/desktop && npm run build
+```
+
+See [apps/desktop/README.md](apps/desktop/README.md) for sidecar / signing details.
+
+## ⚙️ Configuration
+
+| What | Where |
+|------|-------|
+| Model providers | In-app **Providers** page (OpenAI-compatible + Anthropic; 30+ presets) |
+| Platform cookies (member videos) | In-app **Settings → Cookie import** |
+| Data directory | `~/.videomind` (override via `VIDEOMIND_DATA_DIR`) |
+
+## 🗺️ Roadmap — Open Core
+
+| Capability | CE (this repo, MIT) | EE (commercial) |
+|------------|:---:|:---:|
+| Core pipeline (collect / ASR / analyze / report / desktop) | ✅ | ✅ |
+| Result viewer (player + transcript + report split view) | ✅ | ✅ |
+| i18n (zh / en) | ✅ | ✅ |
+| **Knowledge base (RAG + semantic Q&A)** | — | 🔒 |
+| **PPT / mindmap export** | — | 🔒 |
+| **Multimodal OCR (keyframes)** | — | 🔒 |
+| **Account monitoring agent (competitor weekly report)** | — | 🔒 |
+| **Team / private deploy / open API** | — | 🔒 |
+
+Core stays free forever. Enterprise capabilities fund development.
+See [docs/OPEN_CORE_STRATEGY.md](docs/OPEN_CORE_STRATEGY.md).
+
+## 📚 Docs
+
+- [PRD (产品需求)](docs/PRD.md)
+- [Tech Design](docs/TECH_DESIGN.md)
+- [AI Engine Design](docs/AI_ENGINE_DESIGN.md)
+- [UI Redesign Plan](docs/UI_REDESIGN_PLAN.md)
+- [V4 Account Monitor Plan](docs/V4_ACCOUNT_MONITOR_PLAN.md)
+
+## 🤝 Contributing
+
+Contributions to the **core** are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+
+> Enterprise features (RAG / PPT / OCR / account monitoring / team) are developed in a private commercial edition and are **out of scope** for PRs to this repository.
+
+## 🔐 Security
+
+See [SECURITY.md](SECURITY.md). Report vulnerabilities privately, not via public issues.
+
+## 📄 License
+
+[MIT](LICENSE) © VideoMind AI.
+
+**Third-party notices:** depends on [yt-dlp](https://github.com/yt-dlp/yt-dlp), [faster-whisper](https://github.com/SYSTRAN/faster-whisper), [FFmpeg](https://ffmpeg.org) (LGPL/GPL, invoked as subprocess, not bundled), [Tauri](https://tauri.app), [React](https://react.dev), and model providers you configure.

@@ -33,11 +33,9 @@ fn extracted_exe(app: &AppHandle) -> Option<PathBuf> {
 }
 
 /// 首次启动从 resource (tar.gz) 解压 onedir。
+/// 压缩包指纹（大小+mtime）变化时重新解压，保证应用升级后 sidecar 同步更新。
 fn ensure_extracted(app: &AppHandle) -> std::io::Result<PathBuf> {
     let exe = extracted_exe(app).ok_or_else(|| io_err("无 app_data_dir"))?;
-    if exe.exists() {
-        return Ok(exe); // 已解压
-    }
     let archive = app
         .path()
         .resource_dir()
@@ -45,16 +43,41 @@ fn ensure_extracted(app: &AppHandle) -> std::io::Result<PathBuf> {
         .join("bin")
         .join("videomind-sidecar.tar.gz");
     if !archive.exists() {
+        if exe.exists() {
+            return Ok(exe); // 无压缩包但有旧解压产物（异常情形），继续用
+        }
         return Err(io_err("sidecar 压缩包未找到（开发模式？）"));
     }
+
+    let meta = fs::metadata(&archive)?;
+    let fingerprint = format!(
+        "{}-{}",
+        meta.len(),
+        meta.modified()
+            .ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_secs())
+            .unwrap_or(0)
+    );
     let dest = exe
         .parent()
         .and_then(|p| p.parent())
         .ok_or_else(|| io_err("路径错误"))?
         .to_path_buf();
+    let marker = dest.join(".sidecar-fingerprint");
+
+    if exe.exists() && fs::read_to_string(&marker).ok().as_deref() == Some(&fingerprint) {
+        return Ok(exe); // 已解压且与当前压缩包一致
+    }
+
+    // 过期或首次：清掉旧产物重新解压
+    let unpacked = dest.join("videomind-sidecar");
+    if unpacked.exists() {
+        let _ = fs::remove_dir_all(&unpacked);
+    }
     fs::create_dir_all(&dest)?;
     eprintln!(
-        "[sidecar] 首次启动，解压 {} → {}",
+        "[sidecar] 解压 {} → {}",
         archive.display(),
         dest.display()
     );
@@ -62,6 +85,7 @@ fn ensure_extracted(app: &AppHandle) -> std::io::Result<PathBuf> {
     let gz = flate2::read::GzDecoder::new(f);
     let mut ar = tar::Archive::new(gz);
     ar.unpack(&dest)?;
+    fs::write(&marker, fingerprint)?;
     Ok(exe)
 }
 

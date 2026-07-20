@@ -22,11 +22,13 @@ def _to_read(a: Analysis) -> AnalysisRead:
     return AnalysisRead(
         id=a.id,
         video_id=a.video_id,
+        creator_id=a.creator_id,
         template=a.template,
         provider_id=a.provider_id,
         model=a.model,
         language=a.language,
         status=a.status,
+        progress=a.progress,
         parsed=parsed,
         chunks=a.chunks,
         error=a.error,

@@ -20,6 +20,7 @@ PYINSTALLER="${PYINSTALLER:-pyinstaller}"
 "$PYINSTALLER" --name "$PKG" \
   --collect-submodules videomind \
   --collect-all yt_dlp \
+  --collect-all yt_dlp_ejs \
   --collect-all faster_whisper \
   --collect-all ctranslate2 \
   --collect-all weasyprint \

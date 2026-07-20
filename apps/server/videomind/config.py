@@ -38,6 +38,12 @@ class Settings(BaseSettings):
         return p
 
     @property
+    def covers_dir(self) -> Path:
+        p = Path(self.data_dir).expanduser() / "covers"
+        p.mkdir(parents=True, exist_ok=True)
+        return p
+
+    @property
     def cookies_dir(self) -> Path:
         p = Path(self.data_dir).expanduser() / "cookies"
         p.mkdir(parents=True, exist_ok=True)

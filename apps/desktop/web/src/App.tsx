@@ -6,9 +6,13 @@ import { Dashboard } from './pages/Dashboard'
 import { Providers } from './pages/Providers'
 import { NewTask } from './pages/NewTask'
 import { Library } from './pages/Library'
+import { VideoDetail } from './pages/VideoDetail'
 import { Reports } from './pages/Reports'
+import { ReportDetail } from './pages/ReportDetail'
+import { DataTable } from './pages/DataTable'
 import { Settings } from './pages/Settings'
 import { api } from './api/client'
+import { I18nProvider } from './i18n'
 
 export default function App() {
   const [ready, setReady] = useState(false)
@@ -43,28 +47,33 @@ export default function App() {
 
   if (!ready) {
     return (
-      <div className="flex h-screen items-center justify-center bg-neutral-950 text-neutral-500">
-        后端启动中…
+      <div className="vm-bg flex h-screen items-center justify-center text-neutral-500">
+        <span className="animate-pulse">后端启动中…</span>
       </div>
     )
   }
 
   return (
-    <BrowserRouter>
-      <div className="flex h-screen bg-neutral-950 text-neutral-100">
-        <Sidebar />
-        <main className="flex-1 overflow-auto p-8">
+    <I18nProvider>
+      <BrowserRouter>
+        <div className="vm-bg flex h-screen text-neutral-100">
+          <Sidebar />
+          <main className="flex-1 overflow-auto p-8">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/tasks/new" element={<NewTask />} />
             <Route path="/library" element={<Library />} />
+            <Route path="/videos/:id" element={<VideoDetail />} />
             <Route path="/reports" element={<Reports />} />
+            <Route path="/reports/:id" element={<ReportDetail />} />
+            <Route path="/data" element={<DataTable />} />
             <Route path="/providers" element={<Providers />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
-      </div>
-    </BrowserRouter>
+        </div>
+      </BrowserRouter>
+    </I18nProvider>
   )
 }

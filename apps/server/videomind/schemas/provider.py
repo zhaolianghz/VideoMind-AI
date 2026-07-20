@@ -26,6 +26,22 @@ class ProviderUpdate(BaseModel):
     enabled: bool | None = None
 
 
+class ProviderTest(BaseModel):
+    """测试连接：真实调一次 chat 接口验证配置可用。"""
+
+    kind: str = "openai_compat"
+    base_url: str = ""
+    api_key: str = ""  # 留空且带 provider_id 时用已存的 Key
+    model: str = ""
+    provider_id: str | None = None
+
+
+class ProviderTestResult(BaseModel):
+    success: bool
+    message: str
+    latency_ms: int
+
+
 class ProviderRead(ProviderBase):
     id: str
     created_at: datetime

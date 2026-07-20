@@ -1,0 +1,33 @@
+export const en = {
+  brand: 'VideoMind AI',
+  tagline: 'Video Intelligence',
+  nav: {
+    dashboard: 'Dashboard',
+    newTask: 'New Task',
+    library: 'Library',
+    reports: 'Reports',
+    providers: 'Providers',
+    settings: 'Settings',
+  },
+  common: {
+    loading: 'Loading…',
+    starting: 'Starting backend…',
+    save: 'Save',
+    cancel: 'Cancel',
+    delete: 'Delete',
+    back: 'Back',
+    view: 'View',
+    empty: 'No data',
+  },
+  dashboard: {
+    title: 'Dashboard',
+    subtitle: 'AI Video Intelligence System',
+    backend: 'Backend Status',
+    online: 'Online',
+    offline: 'Offline',
+    checking: 'Checking…',
+    statAnalyzed: 'Analyzed',
+    statQueue: 'Queue',
+    statKb: 'KB Entries',
+  },
+}

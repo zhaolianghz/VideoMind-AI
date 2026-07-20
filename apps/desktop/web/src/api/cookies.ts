@@ -26,3 +26,26 @@ export const uploadCookie = (platform: string, content: string) =>
 
 export const deleteCookie = (platform: string): Promise<void> =>
   api.delete(`/settings/cookies/${platform}`).then(() => undefined)
+
+export interface BrowserOption {
+  name: string
+  label: string
+}
+
+export const listBrowsers = (): Promise<BrowserOption[]> =>
+  api.get<BrowserOption[]>('/settings/cookies/browsers/supported').then((r) => r.data)
+
+export interface BrowserImportResult {
+  platform: string
+  browser: string
+  cookies: number
+  saved: boolean
+}
+
+export const importCookieFromBrowser = (
+  platform: string,
+  browser: string,
+): Promise<BrowserImportResult> =>
+  api
+    .post<BrowserImportResult>(`/settings/cookies/${platform}/import-from-browser`, { browser })
+    .then((r) => r.data)

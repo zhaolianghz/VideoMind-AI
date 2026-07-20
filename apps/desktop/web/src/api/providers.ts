@@ -12,3 +12,18 @@ export const updateProvider = (id: string, data: ProviderDraft): Promise<Provide
 
 export const deleteProvider = (id: string): Promise<void> =>
   api.delete(`/settings/providers/${id}`).then(() => undefined)
+
+export interface ProviderTestResult {
+  success: boolean
+  message: string
+  latency_ms: number
+}
+
+export const testProvider = (data: {
+  kind: string
+  base_url: string
+  api_key: string
+  model: string
+  provider_id?: string
+}): Promise<ProviderTestResult> =>
+  api.post<ProviderTestResult>('/settings/providers/test', data).then((r) => r.data)

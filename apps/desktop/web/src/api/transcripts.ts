@@ -11,3 +11,17 @@ export const getSrt = (videoId: string): Promise<string> =>
       transformResponse: (x) => x,
     })
     .then((r) => r.data)
+
+export interface SegmentEdit {
+  start: number
+  end: number
+  text: string
+}
+
+export const updateTranscript = (
+  videoId: string,
+  segments: SegmentEdit[],
+): Promise<{ segments: number; saved: boolean }> =>
+  api
+    .put<{ segments: number; saved: boolean }>(`/transcripts/${videoId}`, { segments })
+    .then((r) => r.data)
