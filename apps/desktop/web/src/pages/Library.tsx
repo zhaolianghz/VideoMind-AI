@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { deleteVideo, extractAudio, fetchComments, getComments, listVideos, recollectVideo, transcribeVideo } from '../api/videos'
 import type { VideoComment } from '../api/videos'
@@ -631,6 +631,22 @@ function AnalyzePanel({ video, onClose }: { video: Video; onClose: () => void })
   const [submitting, setSubmitting] = useState(false)
   const [doneId, setDoneId] = useState<string | null>(null)
 
+  // 没字幕就自动发起「提取音频 → 转录」；分析仍手动（需要用户选模板）。
+  // 父级 3s 轮询会刷新 video.status，转录完成后「开始分析」自动解锁。
+  const transcribeFired = useRef(false)
+  useEffect(() => {
+    if (transcribeFired.current) return
+    if (video.status === 'collected' || video.status === 'ready') {
+      transcribeFired.current = true
+      transcribeVideo(video.id).catch(() => {
+        transcribeFired.current = false
+      })
+    }
+  }, [video.id, video.status])
+
+  /** 评论模板吃的是评论数据，不依赖字幕 */
+  const needTranscript = template !== 'comments' && video.status !== 'transcribed'
+
   useEffect(() => {
     listProviders().then((ps) => {
       // 默认服务商排最前，分析时预选
@@ -679,9 +695,11 @@ function AnalyzePanel({ video, onClose }: { video: Video; onClose: () => void })
         </div>
       ) : (
         <div className="space-y-3">
-          {video.status !== 'transcribed' && (
+          {needTranscript && (
             <div className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
-              {t('library.autoTranscribeHint')}
+              {PROCESSING.has(video.status)
+                ? `${t('library.transcribingHint')}${video.progress ? ` ${video.progress}%` : ''}`
+                : t('library.autoTranscribeHint')}
             </div>
           )}
           <div className="flex flex-wrap items-center gap-1.5">
@@ -737,7 +755,7 @@ function AnalyzePanel({ video, onClose }: { video: Video; onClose: () => void })
             )}
             <button
               onClick={submit}
-              disabled={submitting || !providerId}
+              disabled={submitting || !providerId || needTranscript}
               className="vm-btn-primary h-9 shrink-0 px-6"
             >
               {submitting ? t('library.submitting') : t('library.startAnalyze')}
