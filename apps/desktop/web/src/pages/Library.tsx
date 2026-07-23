@@ -697,9 +697,26 @@ function AnalyzePanel({ video, onClose }: { video: Video; onClose: () => void })
         <div className="space-y-3">
           {needTranscript && (
             <div className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
-              {PROCESSING.has(video.status)
-                ? `${t('library.transcribingHint')}${video.progress ? ` ${video.progress}%` : ''}`
-                : t('library.autoTranscribeHint')}
+              {PROCESSING.has(video.status) ? (
+                <>
+                  {t('library.transcribingHint')}
+                  <ProgressBar
+                    pct={video.progress ?? 0}
+                    label={
+                      video.status === 'extracting'
+                        ? t('library.stageExtracting')
+                        : video.status === 'transcribing'
+                          ? t('library.stageTranscribing')
+                          : undefined
+                    }
+                  />
+                </>
+              ) : (
+                <>
+                  {t('library.autoTranscribeHint')}
+                  <ProgressBar pct={0} />
+                </>
+              )}
             </div>
           )}
           <div className="flex flex-wrap items-center gap-1.5">
