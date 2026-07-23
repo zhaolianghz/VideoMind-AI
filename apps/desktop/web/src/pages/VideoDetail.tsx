@@ -134,7 +134,7 @@ export function VideoDetail() {
             {analyses.length === 0 ? (
               <div className="py-8 text-center text-sm text-secondary">
                 {t('videoDetail.noReport')}
-                <Link to="/library" className="mt-2 block text-accent">
+                <Link to={`/library?analyze=${id}`} className="mt-2 block text-accent">
                   {t('videoDetail.goAnalyze')}
                 </Link>
               </div>

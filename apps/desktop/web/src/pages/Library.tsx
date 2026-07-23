@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { deleteVideo, extractAudio, fetchComments, getComments, listVideos, recollectVideo, transcribeVideo } from '../api/videos'
 import type { VideoComment } from '../api/videos'
 import { analyzeCreator, listCreators } from '../api/creators'
@@ -74,6 +74,24 @@ export function Library() {
   const [commentsFetching, setCommentsFetching] = useState<string | null>(null)
   const [commentsOpenId, setCommentsOpenId] = useState<string | null>(null)
   const [q, setQ] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  // 深链：/library?analyze=<videoId> —— 从视频详情「去发起分析」跳入，
+  // 自动展开该视频的分析面板并滚动到行
+  const analyzeParam = searchParams.get('analyze')
+  useEffect(() => {
+    if (!analyzeParam || videos.length === 0) return
+    if (!videos.some((v) => v.id === analyzeParam)) return
+    setAnalyzeId(analyzeParam)
+    setSearchParams({}, { replace: true })
+    setTimeout(() => {
+      document.getElementById(`video-row-${analyzeParam}`)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      })
+    }, 100)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [analyzeParam, videos.length])
 
   const load = () =>
     Promise.all([
@@ -207,7 +225,7 @@ export function Library() {
           {shown.map((v) => {
             const busy = PROCESSING.has(v.status)
             return (
-              <div key={v.id} className="vm-card">
+              <div key={v.id} id={`video-row-${v.id}`} className="vm-card">
                 <div className="flex items-center gap-4 p-4">
                   <img
                     src={coverSrc(v)}
