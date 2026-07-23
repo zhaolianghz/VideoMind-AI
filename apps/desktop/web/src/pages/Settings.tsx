@@ -12,6 +12,7 @@ import { getPaths, PathsInfo } from '../api/system'
 import { getPreferences, putPreferences, Preferences } from '../api/preferences'
 import { useI18n } from '../i18n'
 import { ThemeSwitcher } from '../components/ThemeSwitcher'
+import { isTauri, pickDirectory } from '../utils/tauri'
 
 const errText = (e: unknown): string => {
   const anyErr = e as { response?: { data?: { detail?: string } }; message?: string }
@@ -174,8 +175,15 @@ export function Settings() {
   const [paths, setPaths] = useState<PathsInfo | null>(null)
   const [cookies, setCookies] = useState<CookieInfo[]>([])
   const [browsers, setBrowsers] = useState<BrowserOption[]>([])
-  const [prefs, setPrefs] = useState<Preferences>({ transcribe_model: '', transcribe_language: '' })
+  const [prefs, setPrefs] = useState<Preferences>({
+    transcribe_model: '',
+    transcribe_language: '',
+    media_dir: '',
+    report_dir: '',
+  })
   const [prefMsg, setPrefMsg] = useState('')
+  const [storageMsg, setStorageMsg] = useState('')
+  const canPick = isTauri()
   const [err, setErr] = useState('')
 
   const refreshCookies = () => {
@@ -195,6 +203,31 @@ export function Settings() {
     putPreferences(patch)
       .then(() => setPrefMsg(t('settings.prefSaved')))
       .catch(() => setPrefMsg(t('settings.prefFail')))
+  }
+
+  const changeDir = (key: 'media_dir' | 'report_dir') => {
+    pickDirectory().then((picked) => {
+      if (!picked) return
+      putPreferences({ [key]: picked } as Partial<Preferences>)
+        .then(() => Promise.all([getPreferences(), getPaths()]))
+        .then(([p, pa]) => {
+          setPrefs(p)
+          setPaths(pa)
+          setStorageMsg('已更新存储目录')
+        })
+        .catch(() => setStorageMsg('更新失败'))
+    })
+  }
+
+  const resetDir = (key: 'media_dir' | 'report_dir') => {
+    putPreferences({ [key]: '' } as Partial<Preferences>)
+      .then(() => Promise.all([getPreferences(), getPaths()]))
+      .then(([p, pa]) => {
+        setPrefs(p)
+        setPaths(pa)
+        setStorageMsg('已恢复默认目录')
+      })
+      .catch(() => setStorageMsg('更新失败'))
   }
 
   return (
@@ -266,6 +299,76 @@ export function Settings() {
             </select>
           </label>
           {prefMsg && <span className="text-xs text-accent">{prefMsg}</span>}
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-sm font-medium text-neutral-200">存储目录</h2>
+          <p className="mt-1 text-xs text-neutral-500">
+            自定义视频下载与报告导出的位置，留空使用默认值。
+          </p>
+        </div>
+        <div className="vm-card divide-y divide-white/[0.06]">
+          <div className="flex items-center justify-between gap-4 px-4 py-3">
+            <div className="min-w-0">
+              <div className="text-sm text-neutral-200">媒体目录（下载的音视频）</div>
+              <div className="vm-url mt-0.5">{paths?.media_dir ?? '加载中…'}</div>
+            </div>
+            <div className="flex shrink-0 items-center gap-3">
+              <button
+                onClick={() => changeDir('media_dir')}
+                disabled={!canPick}
+                className="vm-btn-neon text-xs disabled:opacity-40"
+              >
+                更改
+              </button>
+              {prefs.media_dir && (
+                <button
+                  onClick={() => resetDir('media_dir')}
+                  className="text-xs text-neutral-500 transition hover:text-red-400"
+                >
+                  恢复默认
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center justify-between gap-4 px-4 py-3">
+            <div className="min-w-0">
+              <div className="text-sm text-neutral-200">报告目录（导出位置）</div>
+              <div className="vm-url mt-0.5">{paths?.report_dir ?? '加载中…'}</div>
+            </div>
+            <div className="flex shrink-0 items-center gap-3">
+              <button
+                onClick={() => changeDir('report_dir')}
+                disabled={!canPick}
+                className="vm-btn-neon text-xs disabled:opacity-40"
+              >
+                更改
+              </button>
+              {prefs.report_dir && (
+                <button
+                  onClick={() => resetDir('report_dir')}
+                  className="text-xs text-neutral-500 transition hover:text-red-400"
+                >
+                  恢复默认
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+        {storageMsg && (
+          <div className="rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-xs text-cyan-300">
+            {storageMsg}
+          </div>
+        )}
+        {!canPick && (
+          <div className="text-[11px] text-amber-400/80">
+            开发模式（浏览器）不支持选择目录，打包为桌面应用后可用。
+          </div>
+        )}
+        <div className="text-[11px] leading-relaxed text-neutral-500">
+          更改媒体目录后，已下载的视频仍在原位置可正常访问；新下载的视频会存到新目录。
         </div>
       </section>
 

@@ -3,6 +3,8 @@ import { api } from './client'
 export interface Preferences {
   transcribe_model: string
   transcribe_language: string
+  media_dir: string
+  report_dir: string
 }
 
 export const getPreferences = (): Promise<Preferences> =>

@@ -18,7 +18,10 @@ export const deleteAnalysis = (id: string): Promise<void> =>
 export const saveReport = (
   id: string,
   fmt: 'md' | 'html' | 'pdf',
+  dir?: string,
 ): Promise<{ path: string; filename: string }> =>
   api
-    .post<{ path: string; filename: string }>(`/reports/${id}/save`, null, { params: { fmt } })
+    .post<{ path: string; filename: string }>(`/reports/${id}/save`, null, {
+      params: { fmt, ...(dir ? { dir } : {}) },
+    })
     .then((r) => r.data)

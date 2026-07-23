@@ -124,7 +124,6 @@ def export_videos_csv(session: Session = Depends(get_session)) -> dict:
     import csv
     import json as _json
     from datetime import datetime as _dt
-    from pathlib import Path as _Path
 
     from ...models.analysis import Analysis
     from ...models.transcript import Transcript
@@ -156,7 +155,8 @@ def export_videos_csv(session: Session = Depends(get_session)) -> dict:
         except Exception:
             continue
 
-    downloads = _Path.home() / "Downloads"
+    from ...utils.paths import report_dir as _report_dir
+    downloads = _report_dir()
     downloads.mkdir(parents=True, exist_ok=True)
     path = downloads / f"VideoMind数据表_{_dt.now():%Y%m%d_%H%M%S}.csv"
     with open(path, "w", newline="", encoding="utf-8-sig") as f:

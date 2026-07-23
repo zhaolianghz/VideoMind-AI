@@ -16,10 +16,12 @@ def healthz() -> dict:
 @router.get("/paths")
 def paths() -> dict:
     from ...config import settings
+    from ...utils.paths import media_dir, report_dir
 
     return {
         "data_dir": str(Path(settings.data_dir).expanduser()),
-        "media_dir": str(settings.media_dir),
+        "media_dir": str(media_dir()),
+        "report_dir": str(report_dir()),
         "subtitles_dir": str(settings.subtitles_dir),
         "cookies_dir": str(settings.cookies_dir),
     }

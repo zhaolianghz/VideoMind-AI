@@ -9,12 +9,19 @@ from ...models.setting import AppSetting
 router = APIRouter()
 
 # 允许的偏好键（防随意写入）
-ALLOWED_KEYS = {"transcribe_model", "transcribe_language"}
+ALLOWED_KEYS = {
+    "transcribe_model",
+    "transcribe_language",
+    "media_dir",   # 自定义媒体存储目录（空 = 默认 data_dir/media）
+    "report_dir",  # 自定义报告导出目录（空 = 默认 ~/Downloads）
+}
 
 
 class PreferencesUpdate(BaseModel):
     transcribe_model: str | None = None      # auto/tiny/base/small/medium/large-v3
     transcribe_language: str | None = None   # auto/zh/en
+    media_dir: str | None = None             # 自定义媒体存储目录（空 = 默认）
+    report_dir: str | None = None            # 自定义报告导出目录（空 = 默认）
 
 
 def get_setting(session: Session, key: str, default: str = "") -> str:

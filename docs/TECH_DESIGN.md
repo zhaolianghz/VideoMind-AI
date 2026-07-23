@@ -319,6 +319,7 @@ Settings 全局单例
 - Markdown：Jinja2 模板 + 分析 JSON。
 - PDF：Markdown → HTML（markdown-it）→ weasyprint，支持自定义 Logo/CSS。
 - PPTX (V2)：python-pptx 填预设模板占位符。
+- **导出目录解析（`utils/paths.py`）**：`report_dir()` 优先读 `app_settings.report_dir`（用户自定义），否则 `~/Downloads`；`/reports/{id}/save` 支持 `?dir=` 临时指定（另存为），优先级：`dir` 参数 > 自定义 `report_dir` > `~/Downloads`。媒体目录 `media_dir()` 同理优先 `app_settings.media_dir`，否则 `data_dir/media`——所有采集/抽音频调用统一经此入口，自定义对全管线即时生效（无需重启）。
 
 ### 5.5 知识库 / RAG（V2）
 - Chroma collection：每个 `transcript` 按 500 token 切块入库，元数据带 `video_id/platform/template`。
@@ -340,9 +341,12 @@ Settings 全局单例
 | GET | `/videos/{id}` | 视频详情 + 元数据 |
 | GET | `/transcripts/{video_id}` | 字幕（JSON/SRT/VTT） |
 | GET | `/reports/{task_id}` | 报告内容 |
-| POST | `/reports/{task_id}/export?fmt=pdf\|md\|pptx` | 导出 |
+| POST | `/reports/{id}/export?fmt=md\|html\|pdf` | 导出（返回文件流） |
+| POST | `/reports/{id}/save?fmt=&dir=` | 落盘到报告目录；`dir` 可选（另存为） |
+| GET/PUT | `/settings/preferences` | 偏好（转录模型/语言、媒体目录、报告目录） |
 | GET/PUT | `/settings/models` | 模型配置 |
 | POST | `/settings/cookies` | 导入 Cookie |
+| GET | `/system/paths` | 各存储目录实际生效路径（含自定义） |
 | POST | `/knowledge/query` | RAG 问答 (V2) |
 | GET | `/system/healthz` | 健康检查（sidecar 就绪探针） |
 | WS | `/ws/tasks/{id}` | 任务进度实时推送 |

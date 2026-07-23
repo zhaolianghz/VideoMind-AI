@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft } from '@phosphor-icons/react'
 import { deleteAnalysis, getAnalysis, listAnalyses, saveReport } from '../api/analyses'
+import { pickDirectory } from '../utils/tauri'
 import { getVideo } from '../api/videos'
 import { labelOf, ParsedView } from '../components/ReportView'
 import { ProgressBar } from './Library'
@@ -103,6 +104,22 @@ export function ReportDetail() {
       )
   }
 
+  // 另存为：弹原生目录选择框，选完以 PDF 导出到该位置（不受默认报告目录约束）
+  const doSaveAs = () => {
+    setSaveMsg('请选择保存位置…')
+    pickDirectory().then((dir) => {
+      if (!dir) {
+        setSaveMsg('')
+        return
+      }
+      saveReport(analysis.id, 'pdf', dir)
+        .then((r) => setSaveMsg(`已保存到所选目录：${r.filename}`))
+        .catch((e: unknown) =>
+          setSaveMsg(`导出失败：${e instanceof Error ? e.message : String(e)}`),
+        )
+    })
+  }
+
   return (
     <div className="max-w-4xl">
       <BackLink />
@@ -134,6 +151,7 @@ export function ReportDetail() {
               <button onClick={() => doSave('md')} className="vm-btn-neon text-xs">MD</button>
               <button onClick={() => doSave('html')} className="vm-btn-neon text-xs">HTML</button>
               <button onClick={() => doSave('pdf')} className="vm-btn-neon text-xs">PDF</button>
+              <button onClick={doSaveAs} className="vm-btn-neon text-xs">另存为…</button>
             </>
           )}
           <button

@@ -11,6 +11,7 @@ from ...core.reporter.markdown_report import TEMPLATE_LABELS, render_markdown
 from ...core.reporter.pdf_report import markdown_to_html, markdown_to_pdf
 from ...db.session import get_session
 from ...models.analysis import Analysis
+from ...utils.paths import report_dir
 from ...models.creator import Creator
 from ...models.video import Video
 
@@ -73,10 +74,12 @@ def _safe_filename(text: str, fallback: str) -> str:
 def save_report(
     analysis_id: str,
     fmt: str = Query("md", pattern="md|html|pdf"),
+    dir: str | None = Query(None, description="临时指定目录（另存为）；不传则用配置的默认报告目录"),
     session: Session = Depends(get_session),
 ) -> dict:
-    """把报告写入 ~/Downloads 并返回路径。
+    """把报告写入磁盘并返回路径。
 
+    目录优先级：本次传入的 dir > 「设置」里的自定义 report_dir > ~/Downloads。
     桌面端（Tauri WKWebView）不支持 <a download>，点浏览器式下载链接会把
     整个 webview 导航到文件 URL 导致界面"回不来"，所以改为后端落盘。
     """
@@ -95,16 +98,16 @@ def save_report(
         f"{a.template}-{analysis_id[:8]}",
     )
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    downloads = Path.home() / "Downloads"
-    downloads.mkdir(parents=True, exist_ok=True)
+    outdir = Path(dir).expanduser() if dir else report_dir()
+    outdir.mkdir(parents=True, exist_ok=True)
 
     if fmt == "md":
-        path = downloads / f"{base}_{stamp}.md"
+        path = outdir / f"{base}_{stamp}.md"
         path.write_text(md, encoding="utf-8")
     elif fmt == "html":
-        path = downloads / f"{base}_{stamp}.html"
+        path = outdir / f"{base}_{stamp}.html"
         path.write_text(markdown_to_html(md), encoding="utf-8")
     else:
-        path = downloads / f"{base}_{stamp}.pdf"
+        path = outdir / f"{base}_{stamp}.pdf"
         path.write_bytes(markdown_to_pdf(md))
     return {"path": str(path), "filename": path.name}
