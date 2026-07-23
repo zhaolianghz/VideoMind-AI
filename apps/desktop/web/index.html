@@ -4,6 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>VideoMind AI</title>
+    <script>
+      // 首帧前落主题，避免浅/深闪烁。system(无存储)不设属性，交给 CSS prefers-color-scheme
+      (function () {
+        try {
+          var t = localStorage.getItem('vm-theme')
+          if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t)
+        } catch (e) {}
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

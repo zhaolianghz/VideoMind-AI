@@ -7,7 +7,7 @@ export const listProviders = (): Promise<Provider[]> =>
 export const createProvider = (data: ProviderDraft): Promise<Provider> =>
   api.post<Provider>('/settings/providers', data).then((r) => r.data)
 
-export const updateProvider = (id: string, data: ProviderDraft): Promise<Provider> =>
+export const updateProvider = (id: string, data: Partial<ProviderDraft>): Promise<Provider> =>
   api.put<Provider>(`/settings/providers/${id}`, data).then((r) => r.data)
 
 export const deleteProvider = (id: string): Promise<void> =>
@@ -27,3 +27,13 @@ export const testProvider = (data: {
   provider_id?: string
 }): Promise<ProviderTestResult> =>
   api.post<ProviderTestResult>('/settings/providers/test', data).then((r) => r.data)
+
+export interface ClawboxImportResult {
+  created: number
+  updated: number
+  skipped: number
+}
+
+/** 一键导入 ~/.clawbox/config.json 的服务商（后端直读本地文件，同名更新覆盖） */
+export const importClawboxProviders = (): Promise<ClawboxImportResult> =>
+  api.post<ClawboxImportResult>('/settings/providers/import/clawbox').then((r) => r.data)

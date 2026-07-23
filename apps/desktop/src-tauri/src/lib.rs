@@ -25,16 +25,22 @@ pub fn run() {
                 .app_data_dir()?
                 .to_string_lossy()
                 .to_string();
-            // 异步启动 sidecar，避免阻塞窗口创建（同步等待会导致白屏）
-            std::thread::spawn(move || match sidecar::Sidecar::start(&handle, &data_dir) {
-                Ok(s) => {
-                    eprintln!("[sidecar] ready at {}", s.api_base());
-                    if let Some(state) = handle.try_state::<AppState>() {
-                        *state.sidecar.lock().unwrap() = Some(s);
+            // 异步启动 sidecar，避免阻塞窗口创建（同步等待会导致白屏）。
+            // dev 模式跳过：后端跑源码版 uvicorn（make server），前端走 vite proxy，
+            // 否则会启动旧的打包 sidecar，后端改动不生效。
+            if tauri::is_dev() {
+                eprintln!("[sidecar] dev 模式跳过，走 vite proxy → 127.0.0.1:18791");
+            } else {
+                std::thread::spawn(move || match sidecar::Sidecar::start(&handle, &data_dir) {
+                    Ok(s) => {
+                        eprintln!("[sidecar] ready at {}", s.api_base());
+                        if let Some(state) = handle.try_state::<AppState>() {
+                            *state.sidecar.lock().unwrap() = Some(s);
+                        }
                     }
-                }
-                Err(e) => eprintln!("[sidecar] 未启动: {}（开发模式走 vite proxy）", e),
-            });
+                    Err(e) => eprintln!("[sidecar] 未启动: {}（开发模式走 vite proxy）", e),
+                });
+            }
             // 后台预热抖音匿名 cookie（失败不影响使用，提交任务时会再尝试）
             let cookie_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {

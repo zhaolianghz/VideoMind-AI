@@ -7,10 +7,12 @@ import { labelOf, ParsedView } from '../components/ReportView'
 import { ProgressBar } from './Library'
 import type { Analysis, Video } from '../types'
 import { TEMPLATE_LABELS } from '../types'
+import { useI18n } from '../i18n'
 
 const PROCESSING = new Set(['running', 'pending'])
 
 export function ReportDetail() {
+  const { t } = useI18n()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [analysis, setAnalysis] = useState<Analysis | null>(null)
@@ -53,13 +55,13 @@ export function ReportDetail() {
     return (
       <div className="max-w-3xl">
         <BackLink />
-        <div className="mt-6 rounded-xl border border-red-500/30 bg-red-500/5 p-4 text-sm text-red-400">
-          报告加载失败：{err}
+        <div className="mt-6 rounded-xl border border-danger/30 bg-danger/10 p-4 text-sm text-danger">
+          {t('reportDetail.loadFail')}{err}
         </div>
       </div>
     )
   }
-  if (!analysis) return <div className="text-neutral-500">加载中…</div>
+  if (!analysis) return <div className="text-secondary">{t('common.loading')}</div>
 
   // 桌面 webview 不支持 <a download>（会把整个界面导航到文件 URL 回不来），
   // 改为后端写入 ~/Downloads
@@ -76,11 +78,11 @@ export function ReportDetail() {
                 : `${pad}- ${String(it)}`,
             )
             .join('\n')
-          return `${pad}【${labelOf(k)}】\n${items}`
+          return `${pad}【${labelOf(k, t)}】\n${items}`
         }
         if (v && typeof v === 'object')
-          return `${pad}【${labelOf(k)}】\n${toPlainText(v as Record<string, unknown>, depth + 1)}`
-        return `${pad}【${labelOf(k)}】${String(v)}`
+          return `${pad}【${labelOf(k, t)}】\n${toPlainText(v as Record<string, unknown>, depth + 1)}`
+        return `${pad}【${labelOf(k, t)}】${String(v)}`
       })
       .join('\n\n')
   }
@@ -88,16 +90,16 @@ export function ReportDetail() {
   const doCopy = () => {
     navigator.clipboard
       .writeText(toPlainText(analysis.parsed))
-      .then(() => setSaveMsg('已复制报告全文到剪贴板'))
-      .catch(() => setSaveMsg('复制失败'))
+      .then(() => setSaveMsg(t('reportDetail.copied')))
+      .catch(() => setSaveMsg(t('reportDetail.copyFail')))
   }
 
   const doSave = (fmt: 'md' | 'html' | 'pdf') => {
-    setSaveMsg('导出中…')
+    setSaveMsg(t('reportDetail.exporting'))
     saveReport(analysis.id, fmt)
-      .then((r) => setSaveMsg(`已保存到下载文件夹：${r.filename}`))
+      .then((r) => setSaveMsg(`${t('reportDetail.savedTo')}${r.filename}`))
       .catch((e: unknown) =>
-        setSaveMsg(`导出失败：${e instanceof Error ? e.message : String(e)}`),
+        setSaveMsg(`${t('reportDetail.exportFail')}${e instanceof Error ? e.message : String(e)}`),
       )
   }
 
@@ -110,17 +112,17 @@ export function ReportDetail() {
           <h1 className="text-2xl font-bold">
             {TEMPLATE_LABELS[analysis.template] || analysis.template}
           </h1>
-          <div className="mt-1 text-sm text-neutral-500">
+          <div className="mt-1 text-sm text-secondary">
             {video ? (
-              <>《{video.title || '(无标题)'}》 · {video.author}</>
+              <>《{video.title || t('reports.noTitle')}》 · {video.author}</>
             ) : analysis.creator_id ? (
-              <>博主画像分析</>
+              <>{t('reportDetail.creatorProfile')}</>
             ) : (
               <>video {analysis.video_id.slice(0, 8)}…</>
             )}
           </div>
-          <div className="mt-1 font-mono text-xs text-neutral-600">
-            {analysis.model} · {analysis.language} · {analysis.chunks} 片段 ·{' '}
+          <div className="mt-1 font-mono text-xs text-secondary">
+            {analysis.model} · {analysis.language} · {analysis.chunks} {t('reports.chunks')} ·{' '}
             {new Date(analysis.created_at).toLocaleString()}
           </div>
         </div>
@@ -128,7 +130,7 @@ export function ReportDetail() {
         <div className="flex shrink-0 items-center gap-2">
           {analysis.status === 'done' && (
             <>
-              <button onClick={doCopy} className="vm-btn-neon text-xs">复制全文</button>
+              <button onClick={doCopy} className="vm-btn-neon text-xs">{t('reportDetail.copyAll')}</button>
               <button onClick={() => doSave('md')} className="vm-btn-neon text-xs">MD</button>
               <button onClick={() => doSave('html')} className="vm-btn-neon text-xs">HTML</button>
               <button onClick={() => doSave('pdf')} className="vm-btn-neon text-xs">PDF</button>
@@ -142,17 +144,17 @@ export function ReportDetail() {
             }
             onMouseLeave={() => setConfirmDel(false)}
             className={`rounded-lg px-2.5 py-1.5 text-xs transition-colors ${
-              confirmDel ? 'bg-red-600 text-white hover:bg-red-500' : 'text-red-400 hover:text-red-300'
+              confirmDel ? 'bg-danger text-on-accent hover:bg-danger' : 'text-danger hover:text-danger'
             }`}
           >
-            {confirmDel ? '确认删除？' : '删除'}
+            {confirmDel ? t('reports.confirmDelete') : t('reports.delete')}
           </button>
         </div>
       </div>
 
       {siblings.length > 1 && (
         <div className="mb-4 flex flex-wrap items-center gap-1.5">
-          <span className="mr-1 text-xs text-neutral-500">该视频的报告</span>
+          <span className="mr-1 text-xs text-secondary">{t('reportDetail.videoReports')}</span>
           {siblings.map((sb) => (
             <Link
               key={sb.id}
@@ -166,28 +168,28 @@ export function ReportDetail() {
       )}
 
       {saveMsg && (
-        <div className="mb-4 rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-xs text-cyan-300">
+        <div className="mb-4 rounded-lg border border-accent/40 bg-accent/10 px-3 py-2 text-xs text-accent">
           {saveMsg}
         </div>
       )}
 
       {analysis.status === 'failed' && (
-        <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4 text-sm text-red-400">
-          ⚠ {analysis.error || '分析失败'}
+        <div className="rounded-xl border border-danger/30 bg-danger/10 p-4 text-sm text-danger">
+          ⚠ {analysis.error || t('reportDetail.analysisFailed')}
         </div>
       )}
 
       {PROCESSING.has(analysis.status) && (
         <div className="vm-card p-5">
-          <div className="text-sm text-neutral-300">
-            {analysis.status === 'pending' ? '排队等待中…' : '正在分析…'}
+          <div className="text-sm text-primary">
+            {analysis.status === 'pending' ? t('reportDetail.queued') : t('reportDetail.analyzing')}
           </div>
           <ProgressBar pct={analysis.progress ?? 0} />
         </div>
       )}
 
       {analysis.status === 'done' && (
-        <div className="vm-card p-6">
+        <div className="pb-10 pt-2">
           <ParsedView data={analysis.parsed} />
         </div>
       )}
@@ -196,12 +198,13 @@ export function ReportDetail() {
 }
 
 function BackLink() {
+  const { t } = useI18n()
   return (
     <Link
       to="/reports"
-      className="inline-flex items-center gap-1.5 text-sm text-neutral-400 transition hover:text-cyan-300"
+      className="inline-flex items-center gap-1.5 text-sm text-secondary transition hover:text-accent"
     >
-      <ArrowLeft size={16} /> 返回报告中心
+      <ArrowLeft size={16} /> {t('reportDetail.back')}
     </Link>
   )
 }

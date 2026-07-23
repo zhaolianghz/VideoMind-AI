@@ -5,6 +5,18 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 def _default_data_dir() -> str:
+    """默认数据目录。
+
+    桌面版 sidecar 会把数据存到 macOS 的 app-data 目录（并通过 --data-dir
+    显式传入）；dev 裸起 uvicorn 时若该库已存在，优先复用同一份数据，
+    避免开发后端指向空库、界面上"数据全没了"。要独立开发库可显式设
+    VIDEOMIND_DATA_DIR。
+    """
+    desktop_dir = (
+        Path.home() / "Library" / "Application Support" / "com.videomind.desktop"
+    )
+    if (desktop_dir / "videomind.db").exists():
+        return str(desktop_dir)
     return str(Path.home() / ".videomind")
 
 

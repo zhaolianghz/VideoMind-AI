@@ -8,33 +8,159 @@ body,
   height: 100%;
 }
 
+/* ============================================================
+   Apple 语义色板 — 浅色默认 + 深色覆盖
+   主题切换：<html data-theme="light|dark">；无属性(system) → 跟随 OS
+   ============================================================ */
 :root {
-  --neon: #22d3ee; /* cyan-400 */
-  --bg-deep: #05070d;
+  color-scheme: light;
+
+  --bg: #f5f5f7;
+  --surface: #ffffff;
+  --surface-2: #f5f5f7;
+  --material: rgba(255, 255, 255, 0.72);
+  --fill: rgba(0, 0, 0, 0.04);
+
+  --border: rgba(0, 0, 0, 0.1);
+  --separator: rgba(0, 0, 0, 0.06);
+
+  --text-primary: #1d1d1f;
+  --text-secondary: #6e6e73;
+  --text-tertiary: #86868b;
+
+  --accent: #0071e3;
+  --accent-hover: #0077ed;
+  --on-accent: #ffffff;
+
+  --danger: #ff3b30;
+  --warning: #ff9500;
+  --success: #34c759;
+
+  /* 数据可视化色板（Apple vivid，浅色档）：评分条/序号/图表按索引轮换 */
+  --viz-1: #007aff;
+  --viz-2: #af52de;
+  --viz-3: #ff2d55;
+  --viz-4: #ff9500;
+  --viz-5: #34c759;
+  --viz-6: #32ade6;
+
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.06);
+  --shadow-pop: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+/* 深色令牌：显式 data-theme="dark" 或 system+OS 深色 */
+
+/* 显式深色 */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #1c1c1e;
+  --surface: #2c2c2e;
+  --surface-2: #3a3a3c;
+  --material: rgba(30, 30, 32, 0.72);
+  --fill: rgba(255, 255, 255, 0.06);
+
+  --border: rgba(255, 255, 255, 0.12);
+  --separator: rgba(255, 255, 255, 0.08);
+
+  --text-primary: #f5f5f7;
+  --text-secondary: #aeaeb2;
+  --text-tertiary: #8e8e93;
+
+  --accent: #0a84ff;
+  --accent-hover: #409cff;
+  --on-accent: #ffffff;
+
+  --danger: #ff453a;
+  --warning: #ff9f0a;
+  --success: #30d158;
+
+  /* 数据可视化色板（深色档更亮，深底上发光） */
+  --viz-1: #0a84ff;
+  --viz-2: #bf5af2;
+  --viz-3: #ff375f;
+  --viz-4: #ff9f0a;
+  --viz-5: #30d158;
+  --viz-6: #64d2ff;
+
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.3);
+  --shadow-pop: 0 8px 30px rgba(0, 0, 0, 0.5);
+}
+
+/* system（无 data-theme）+ OS 深色 */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']):not([data-theme='dark']) {
+    color-scheme: dark;
+
+    --bg: #1c1c1e;
+    --surface: #2c2c2e;
+    --surface-2: #3a3a3c;
+    --material: rgba(30, 30, 32, 0.72);
+    --fill: rgba(255, 255, 255, 0.06);
+
+    --border: rgba(255, 255, 255, 0.12);
+    --separator: rgba(255, 255, 255, 0.08);
+
+    --text-primary: #f5f5f7;
+    --text-secondary: #aeaeb2;
+    --text-tertiary: #8e8e93;
+
+    --accent: #0a84ff;
+    --accent-hover: #409cff;
+    --on-accent: #ffffff;
+
+    --danger: #ff453a;
+    --warning: #ff9f0a;
+    --success: #30d158;
+
+    --viz-1: #0a84ff;
+    --viz-2: #bf5af2;
+    --viz-3: #ff375f;
+    --viz-4: #ff9f0a;
+    --viz-5: #30d158;
+    --viz-6: #64d2ff;
+
+    --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.3);
+    --shadow-pop: 0 8px 30px rgba(0, 0, 0, 0.5);
+  }
 }
 
 body {
   margin: 0;
-  font-family: 'Geist Variable', -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
-  font-feature-settings: 'cv11', 'ss01';
-  background: var(--bg-deep);
+  /* Apple：系统字体优先（macOS = SF Pro），CJK 回退 */
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui,
+    'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  letter-spacing: -0.01em; /* body 近 0，略收 */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* 深空背景：左上/右下两团青色光晕，营造"高科技"氛围 */
+/* 大标题收紧字距（Apple：字号越大字距越负） */
+h1, .text-2xl, .text-3xl { letter-spacing: -0.02em; }
+
+/* 页面背景：Apple 用纯净底色，浅色平铺、深色极淡渐变增加层次 */
 .vm-bg {
+  background: var(--bg);
+}
+:root[data-theme='dark'] .vm-bg {
   background:
-    radial-gradient(ellipse 60% 40% at 8% -8%, rgba(34, 211, 238, 0.08), transparent 60%),
-    radial-gradient(ellipse 50% 35% at 100% 110%, rgba(56, 189, 248, 0.06), transparent 60%),
-    var(--bg-deep);
+    radial-gradient(ellipse 70% 50% at 50% -10%, rgba(255, 255, 255, 0.03), transparent 60%),
+    var(--bg);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']):not([data-theme='dark']) .vm-bg {
+    background:
+      radial-gradient(ellipse 70% 50% at 50% -10%, rgba(255, 255, 255, 0.03), transparent 60%),
+      var(--bg);
+  }
 }
 
-/* === 自定义滚动条：解决深色主题下系统白色滚动条扎眼的问题 ===
-   - macOS Tauri webview: overlay 样式覆盖为细透明条
-   - Windows / Linux webkit: 28px 白条 → 替换为半透明白
-   - Firefox: 通过 scrollbar-color 兜底 */
+/* === 滚动条：随主题的中性细条 === */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+  scrollbar-color: var(--border) transparent;
 }
 *::-webkit-scrollbar {
   width: 10px;
@@ -44,13 +170,13 @@ body {
   background: transparent;
 }
 *::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--border);
   border-radius: 6px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.18);
+  background: var(--text-tertiary);
   background-clip: padding-box;
   border: 2px solid transparent;
 }
@@ -59,45 +185,100 @@ body {
 }
 
 @layer components {
+  /* 输入框：Apple — surface 底、细边、聚焦时 3px 蓝色环、无发光 */
   .vm-input {
-    @apply w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-neutral-100 placeholder-neutral-600 transition-all focus:border-cyan-400/60 focus:outline-none focus:shadow-[0_0_12px_rgba(34,211,238,0.15)];
+    @apply w-full rounded-xl border px-3.5 py-2 text-sm transition-all focus:outline-none;
+    background: var(--surface);
+    border-color: var(--border);
+    color: var(--text-primary);
   }
+  .vm-input::placeholder {
+    color: var(--text-tertiary);
+  }
+  .vm-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3.5px color-mix(in srgb, var(--accent) 30%, transparent);
+  }
+
+  /* 卡片：Apple — 实心 surface、柔和阴影、无发光。内容卡片不用半透明（避免浅叠浅） */
   .vm-card {
-    @apply rounded-2xl border border-white/[0.07] bg-[#0b0f17]/90 shadow-lg shadow-black/40 backdrop-blur-xl transition-colors hover:border-white/[0.14];
+    @apply rounded-2xl border transition-colors;
+    background: var(--surface);
+    border-color: var(--border);
+    box-shadow: var(--shadow-card);
   }
-  /* 霓虹描边按钮（"添加/次要操作"样式） */
-  .vm-btn-neon {
-    @apply rounded-lg border border-cyan-400/50 px-4 py-1.5 text-sm text-cyan-300 transition-all hover:bg-cyan-400/10 hover:shadow-[0_0_14px_rgba(34,211,238,0.25)] disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:shadow-none;
-  }
-  /* 实心主按钮 */
+
+  /* 主按钮：Apple — 实心蓝、白字、按下缩放，无发光 */
   .vm-btn-primary {
-    @apply rounded-lg bg-cyan-500 px-4 py-2 text-sm font-medium text-neutral-950 transition-all hover:bg-cyan-400 hover:shadow-[0_0_18px_rgba(34,211,238,0.35)] disabled:opacity-50 disabled:hover:shadow-none;
+    @apply rounded-xl px-4 py-2 text-sm font-medium transition-all disabled:opacity-40;
+    background: var(--accent);
+    color: var(--on-accent);
   }
+  .vm-btn-primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+  }
+  .vm-btn-primary:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
+  /* 次要按钮（原 neon）：Apple tinted button — 淡蓝底、蓝字、无边框发光 */
+  .vm-btn-neon {
+    @apply rounded-xl px-4 py-1.5 text-sm font-medium transition-all disabled:opacity-40;
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    color: var(--accent);
+  }
+  .vm-btn-neon:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--accent) 20%, transparent);
+  }
+  .vm-btn-neon:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
   /* 胶囊筛选 chip */
   .vm-chip {
-    @apply rounded-full border px-3.5 py-1 text-xs transition-all;
+    @apply cursor-pointer rounded-full border px-3.5 py-1 text-xs font-medium transition-all;
   }
   .vm-chip-on {
-    @apply border-cyan-400/60 bg-cyan-400/10 text-cyan-300 shadow-[0_0_10px_rgba(34,211,238,0.2)];
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    border-color: transparent;
+    color: var(--accent);
   }
   .vm-chip-off {
-    @apply border-white/10 text-neutral-400 hover:border-white/25 hover:text-neutral-200;
+    border-color: var(--border);
+    color: var(--text-secondary);
   }
+  .vm-chip-off:hover {
+    background: var(--fill);
+    color: var(--text-primary);
+  }
+
   /* mono URL 芯片 */
   .vm-url {
-    @apply inline-block max-w-full truncate rounded-md bg-white/[0.05] px-2.5 py-1 font-mono text-xs text-neutral-400;
+    @apply inline-block max-w-full truncate rounded-lg px-2.5 py-1 font-mono text-xs;
+    background: var(--fill);
+    color: var(--text-secondary);
   }
-  /* 下拉框：去原生箭头，自绘青色 chevron，与 vm-input 同语言 */
+
+  /* 下拉框：与 vm-input 同语言，自绘中性 chevron */
   .vm-select {
-    @apply appearance-none rounded-lg border border-white/10 bg-white/[0.04] py-2 pl-3 pr-9 text-sm text-neutral-100 transition-all focus:border-cyan-400/60 focus:outline-none focus:shadow-[0_0_12px_rgba(34,211,238,0.15)];
-    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2367e8f9' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    @apply w-full appearance-none rounded-xl border py-2 pl-3.5 pr-9 text-sm transition-all focus:outline-none;
+    background-color: var(--surface);
+    border-color: var(--border);
+    color: var(--text-primary);
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
-    background-position: right 0.65rem center;
+    background-position: right 0.7rem center;
+  }
+  .vm-select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3.5px color-mix(in srgb, var(--accent) 30%, transparent);
   }
   .vm-select option {
-    @apply bg-[#0b0f17] text-neutral-100;
+    background: var(--surface);
+    color: var(--text-primary);
   }
-  /* 表格行展开详情：从所属行处淡入下滑（空间上源自触发行），无弹跳 */
+
+  /* 表格行展开详情：从触发行淡入下滑 */
   .vm-row-detail {
     animation: vm-detail-in 0.24s cubic-bezier(0.25, 1, 0.5, 1);
     transform-origin: top;
@@ -120,5 +301,142 @@ body {
       from { opacity: 0; }
       to { opacity: 1; }
     }
+  }
+
+  /* === 新建任务：发射台 === */
+
+  /* Hero 输入框：比 vm-input 大一号，聚焦时 accent 光环 */
+  .vm-hero-input {
+    @apply w-full rounded-2xl border px-5 py-4 text-base transition-all focus:outline-none;
+    background: var(--surface);
+    border-color: var(--border);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-card);
+  }
+  .vm-hero-input::placeholder {
+    color: var(--text-tertiary);
+  }
+  .vm-hero-input:focus {
+    border-color: var(--accent);
+    box-shadow:
+      0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent),
+      var(--shadow-card);
+  }
+
+  /* 渐变主按钮：采集发射键 */
+  .vm-btn-hero {
+    @apply rounded-xl px-6 py-2.5 text-sm font-semibold transition-all disabled:opacity-40;
+    color: #fff;
+    background: linear-gradient(135deg, var(--accent), var(--viz-2));
+    box-shadow: 0 4px 18px color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+  .vm-btn-hero:hover:not(:disabled) {
+    filter: brightness(1.08);
+  }
+  .vm-btn-hero:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
+  /* === 报告视图 === */
+  /* 内容块入场：淡入 + 上浮，按索引 animation-delay 错峰 */
+  .vm-reveal {
+    animation: vm-reveal-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  @keyframes vm-reveal-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+  }
+
+  /* 评分 hero 面板：surface 底 + 两角彩色极光，亮暗主题都成立 */
+  .vm-score-hero {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background:
+      radial-gradient(90% 130% at 0% 0%, color-mix(in srgb, var(--viz-1) 10%, transparent), transparent 55%),
+      radial-gradient(90% 130% at 100% 100%, color-mix(in srgb, var(--viz-2) 9%, transparent), transparent 55%),
+      var(--surface);
+    box-shadow: var(--shadow-card);
+  }
+
+  /* 渐变文字（总分数字） */
+  .vm-grad-text {
+    background: linear-gradient(120deg, var(--viz-1), var(--viz-2) 55%, var(--viz-3));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .vm-reveal {
+      animation: none;
+    }
+  }
+}
+
+/* === 启动加载屏：猫头鹰（洞察 = VideoMind 的隐喻），随主题用 accent 上色 === */
+.owl-float {
+  animation: owl-bob 3s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+@keyframes owl-bob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-8px) rotate(-1deg); }
+}
+
+.owl-eye {
+  transform-origin: center;
+  animation: owl-blink 4s ease-in-out infinite;
+}
+.owl-eye.right { animation-delay: 0.08s; }
+@keyframes owl-blink {
+  0%, 46%, 54%, 100% { transform: scaleY(1); }
+  50%                { transform: scaleY(0.08); }
+}
+
+.owl-glow {
+  animation: owl-glow-pulse 3s ease-in-out infinite;
+  transform-origin: center;
+}
+@keyframes owl-glow-pulse {
+  0%, 100% { opacity: 0.28; transform: scale(1); }
+  50%      { opacity: 0.5;  transform: scale(1.08); }
+}
+
+.owl-dots span {
+  display: inline-block;
+  animation: owl-dot 1.4s ease-in-out infinite;
+}
+.owl-dots span:nth-child(2) { animation-delay: 0.2s; }
+.owl-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes owl-dot {
+  0%, 60%, 100% { opacity: 0.2; transform: translateY(0); }
+  30%           { opacity: 1;   transform: translateY(-3px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .owl-float, .owl-eye, .owl-glow, .owl-dots span { animation: none; }
+}
+
+/* === 无障碍：减少透明 / 增强对比 === */
+@media (prefers-reduced-transparency: reduce) {
+  :root { --material: var(--surface); }
+}
+@media (prefers-contrast: more) {
+  :root {
+    --border: rgba(0, 0, 0, 0.28);
+    --text-secondary: #4a4a4f;
+  }
+  :root[data-theme='dark'] {
+    --border: rgba(255, 255, 255, 0.32);
+    --text-secondary: #d0d0d4;
+  }
+}
+@media (prefers-contrast: more) and (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']):not([data-theme='dark']) {
+    --border: rgba(255, 255, 255, 0.32);
+    --text-secondary: #d0d0d4;
   }
 }

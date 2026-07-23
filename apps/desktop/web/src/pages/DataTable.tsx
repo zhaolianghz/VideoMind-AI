@@ -6,6 +6,7 @@ import { exportVideosCsv, listVideos, recollectVideo } from '../api/videos'
 import { listProviders } from '../api/providers'
 import { listCreators } from '../api/creators'
 import type { Analysis, Creator, Provider, Video } from '../types'
+import { useI18n } from '../i18n'
 
 interface Score {
   emotion?: number
@@ -22,32 +23,33 @@ type SortKey =
   | 'total' | 'like_count' | 'comment_count' | 'share_count'
   | 'favorite_count' | 'view_count' | 'duration_sec'
 
+// label = i18n key under dataTable.* (resolved at render via t())
 const COLS: { key: SortKey; label: string }[] = [
-  { key: 'view_count', label: '播放' },
-  { key: 'like_count', label: '点赞' },
-  { key: 'comment_count', label: '评论' },
-  { key: 'share_count', label: '分享' },
-  { key: 'favorite_count', label: '收藏' },
-  { key: 'duration_sec', label: '时长' },
-  { key: 'total', label: '总分' },
+  { key: 'view_count', label: 'colViews' },
+  { key: 'like_count', label: 'colLikes' },
+  { key: 'comment_count', label: 'colComments' },
+  { key: 'share_count', label: 'colShares' },
+  { key: 'favorite_count', label: 'colFavorites' },
+  { key: 'duration_sec', label: 'colDuration' },
+  { key: 'total', label: 'colTotal' },
 ]
 
 const DIMS: { key: keyof Score; label: string }[] = [
-  { key: 'emotion', label: '情绪' },
-  { key: 'conflict', label: '冲突' },
-  { key: 'tension', label: '张力' },
-  { key: 'info_gap', label: '信息差' },
-  { key: 'resonance', label: '共鸣' },
+  { key: 'emotion', label: 'dimEmotion' },
+  { key: 'conflict', label: 'dimConflict' },
+  { key: 'tension', label: 'dimTension' },
+  { key: 'info_gap', label: 'dimInfoGap' },
+  { key: 'resonance', label: 'dimResonance' },
 ]
 
 const fmtNum = (n: number): string =>
   n >= 10000 ? `${(n / 10000).toFixed(1)}w` : String(n)
 
 const scoreColor = (n: number | undefined): string => {
-  if (n == null) return 'text-neutral-600'
-  if (n >= 8) return 'text-cyan-300'
-  if (n >= 5) return 'text-neutral-200'
-  return 'text-neutral-500'
+  if (n == null) return 'text-tertiary'
+  if (n >= 8) return 'text-accent'
+  if (n >= 5) return 'text-primary'
+  return 'text-secondary'
 }
 
 /** 五维单项：标签 + 数值 + 条形（8+ 青色发光，5-7 中性，<5 暗） */
@@ -55,14 +57,14 @@ function DimBar({ label, value }: { label: string; value: number | undefined }) 
   const v = value ?? 0
   const bar =
     v >= 8
-      ? 'bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.5)]'
+      ? 'bg-accent'
       : v >= 5
-        ? 'bg-neutral-300'
-        : 'bg-neutral-600'
+        ? 'bg-fill'
+        : 'bg-fill'
   return (
     <div className="flex items-center gap-2">
-      <span className="w-12 shrink-0 text-xs text-neutral-400">{label}</span>
-      <div className="h-1.5 w-28 overflow-hidden rounded-full bg-white/[0.06]">
+      <span className="w-12 shrink-0 text-xs text-secondary">{label}</span>
+      <div className="h-1.5 w-28 overflow-hidden rounded-full bg-fill">
         <div
           className={`h-full rounded-full transition-all duration-300 ${bar}`}
           style={{ width: `${v * 10}%` }}
@@ -76,6 +78,7 @@ function DimBar({ label, value }: { label: string; value: number | undefined }) 
 }
 
 export function DataTable() {
+  const { t } = useI18n()
   const [videos, setVideos] = useState<Video[]>([])
   const [analyses, setAnalyses] = useState<Analysis[]>([])
   const [providers, setProviders] = useState<Provider[]>([])
@@ -154,10 +157,10 @@ export function DataTable() {
   }
 
   const doExport = () => {
-    setMsg('导出中…')
+    setMsg(t('dataTable.exporting'))
     exportVideosCsv()
-      .then((r) => setMsg(`已保存 CSV 到下载文件夹（${r.rows} 行，其中 ${r.scored} 条有评分）`))
-      .catch((e: unknown) => setMsg(`导出失败：${e instanceof Error ? e.message : String(e)}`))
+      .then((r) => setMsg(t('dataTable.exportOk').replace('{rows}', String(r.rows)).replace('{scored}', String(r.scored))))
+      .catch((e: unknown) => setMsg(`${t('dataTable.exportFail')}${e instanceof Error ? e.message : String(e)}`))
   }
 
   // 缺互动数据的视频（早期采集的没存点赞/标题等）：重采只刷元数据，不重复下载
@@ -168,12 +171,12 @@ export function DataTable() {
   )
   const doRefreshData = async () => {
     setBusy(true)
-    setMsg(`正在补采 ${stale.length} 条视频的标题/互动数据（不会重复下载）…`)
+    setMsg(t('dataTable.refetching').replace('{n}', String(stale.length)))
     try {
       for (const v of stale) await recollectVideo(v.id)
-      setMsg(`已提交 ${stale.length} 条补采，数据到位后自动刷新表格`)
+      setMsg(t('dataTable.refetchOk').replace('{n}', String(stale.length)))
     } catch (e) {
-      setMsg(`补采失败：${e instanceof Error ? e.message : String(e)}`)
+      setMsg(`${t('dataTable.refetchFail')}${e instanceof Error ? e.message : String(e)}`)
     } finally {
       setBusy(false)
     }
@@ -186,19 +189,19 @@ export function DataTable() {
   const doBatchScore = async () => {
     const prov = providers[0]
     if (!prov) {
-      setMsg('还没有可用的模型服务商，请先到「模型服务商」配置')
+      setMsg(t('dataTable.noProvider'))
       return
     }
     setBusy(true)
-    setMsg(`正在为 ${pending.length} 条视频发起评分（${prov.name}）…`)
+    setMsg(t('dataTable.scoring').replace('{n}', String(pending.length)).replace('{provider}', prov.name))
     try {
       for (const v of pending) {
         await createAnalysis({ video_id: v.id, template: 'score', provider_id: prov.id })
       }
-      setMsg(`已提交 ${pending.length} 条评分任务，完成后自动填入表格`)
+      setMsg(t('dataTable.scoreOk').replace('{n}', String(pending.length)))
       load()
     } catch (e) {
-      setMsg(`提交失败：${e instanceof Error ? e.message : String(e)}`)
+      setMsg(`${t('dataTable.scoreFail')}${e instanceof Error ? e.message : String(e)}`)
     } finally {
       setBusy(false)
     }
@@ -208,30 +211,30 @@ export function DataTable() {
     <div className="max-w-6xl">
       <div className="mb-6 flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">数据总表</h1>
-          <p className="text-sm text-neutral-500">
-            互动数据 + 专家五维评分 · 点击行展开详情 · CSV 含口播稿全文
+          <h1 className="text-2xl font-bold">{t('dataTable.title')}</h1>
+          <p className="text-sm text-secondary">
+            {t('dataTable.subtitle')}
           </p>
         </div>
         <div className="flex shrink-0 gap-2">
           {stale.length > 0 && (
             <button onClick={doRefreshData} disabled={busy} className="vm-btn-neon text-xs">
-              {busy ? '提交中…' : `补采数据（${stale.length} 条缺失）`}
+              {busy ? t('dataTable.submitting') : t('dataTable.refetchBtn').replace('{n}', String(stale.length))}
             </button>
           )}
           {pending.length > 0 && (
             <button onClick={doBatchScore} disabled={busy} className="vm-btn-neon text-xs">
-              {busy ? '提交中…' : `批量评分（${pending.length} 条未评）`}
+              {busy ? t('dataTable.submitting') : t('dataTable.batchScoreBtn').replace('{n}', String(pending.length))}
             </button>
           )}
           <button onClick={doExport} className="vm-btn-primary text-xs">
-            导出 CSV
+            {t('dataTable.exportCsv')}
           </button>
         </div>
       </div>
 
       {msg && (
-        <div className="mb-4 rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-xs text-cyan-300">
+        <div className="mb-4 rounded-lg border border-accent/40 bg-accent/10 px-3 py-2 text-xs text-accent">
           {msg}
         </div>
       )}
@@ -244,7 +247,7 @@ export function DataTable() {
                 onClick={() => setCreatorId(null)}
                 className={`vm-chip ${creatorId === null ? 'vm-chip-on' : 'vm-chip-off'}`}
               >
-                全部博主
+                {t('dataTable.allCreators')}
               </button>
               {creators.map((c) => (
                 <button
@@ -252,7 +255,7 @@ export function DataTable() {
                   onClick={() => setCreatorId(creatorId === c.id ? null : c.id)}
                   className={`vm-chip ${creatorId === c.id ? 'vm-chip-on' : 'vm-chip-off'}`}
                 >
-                  {c.name || '(未知)'} {c.video_count}
+                  {c.name || t('dataTable.unknownCreator')} {c.video_count}
                 </button>
               ))}
             </>
@@ -263,7 +266,7 @@ export function DataTable() {
               onChange={(e) => setCategory(e.target.value || null)}
               className="vm-select ml-auto h-8 py-1 text-xs"
             >
-              <option value="">全部分类</option>
+              <option value="">{t('dataTable.allCategories')}</option>
               {Array.from(new Set(videos.map((v) => v.category).filter(Boolean))).map((c) => (
                 <option key={c} value={c}>{c}</option>
               ))}
@@ -273,36 +276,36 @@ export function DataTable() {
       )}
 
       {videos.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-white/10 py-16 text-center">
-          <p className="text-neutral-500">视频库还是空的</p>
-          <Link to="/tasks/new" className="mt-2 inline-block text-sm text-cyan-400">
-            去新建分析 →
+        <div className="rounded-xl border border-dashed border-app py-16 text-center">
+          <p className="text-secondary">{t('dataTable.emptyLib')}</p>
+          <Link to="/tasks/new" className="mt-2 inline-block text-sm text-accent">
+            {t('dataTable.goNewTask')}
           </Link>
         </div>
       ) : (
         <div className="vm-card overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-white/[0.08] text-left text-xs text-neutral-400">
+              <tr className="border-b border-app text-left text-xs text-secondary">
                 <th className="w-6 px-2 py-2.5" />
-                <th className="px-2 py-2.5 font-medium">视频</th>
+                <th className="px-2 py-2.5 font-medium">{t('dataTable.colVideo')}</th>
                 {COLS.map((c) => (
                   <th
                     key={c.key}
                     onClick={() => clickSort(c.key)}
-                    className={`cursor-pointer whitespace-nowrap px-2 py-2.5 text-right font-medium hover:text-cyan-300 ${
-                      sortKey === c.key ? 'text-cyan-300' : ''
+                    className={`cursor-pointer whitespace-nowrap px-2 py-2.5 text-right font-medium hover:text-accent ${
+                      sortKey === c.key ? 'text-accent' : ''
                     }`}
                   >
-                    {c.label}
+                    {t('dataTable.' + c.label)}
                     {sortKey === c.key ? (desc ? ' ↓' : ' ↑') : ''}
                   </th>
                 ))}
                 <th
                   className="whitespace-nowrap px-2 py-2.5 text-right font-medium"
-                  title="深度拆解的爆款指数（0-100 + S/A/B/C 等级）"
+                  title={t('dataTable.indexTip')}
                 >
-                  指数
+                  {t('dataTable.indexCol')}
                 </th>
               </tr>
             </thead>
@@ -316,24 +319,24 @@ export function DataTable() {
                     <tr
                       key={v.id}
                       onClick={() => setOpenId(open ? null : v.id)}
-                      className={`cursor-pointer border-b border-white/[0.04] transition-colors ${
-                        open ? 'bg-cyan-400/[0.04]' : 'hover:bg-white/[0.02]'
+                      className={`cursor-pointer border-b border-app transition-colors ${
+                        open ? 'bg-accent/10' : 'hover:bg-fill'
                       }`}
                     >
                       <td className="px-2 py-2.5">
                         <span
                           className={`inline-block transition-transform duration-200 motion-reduce:transition-none ${
-                            open ? 'rotate-90 text-cyan-300' : 'text-neutral-500'
+                            open ? 'rotate-90 text-accent' : 'text-secondary'
                           }`}
                         >
                           <CaretRight size={13} />
                         </span>
                       </td>
                       <td className="max-w-72 px-2 py-2.5">
-                        <div className="truncate font-medium text-neutral-200" title={v.title}>
-                          {v.title || '(无标题 — 点「补采数据」修复)'}
+                        <div className="truncate font-medium text-primary" title={v.title}>
+                          {v.title || t('dataTable.noTitleFix')}
                         </div>
-                        <div className="truncate text-xs text-neutral-500">
+                        <div className="truncate text-xs text-secondary">
                           {v.author || v.platform}
                           {v.music ? ` · ♪ ${v.music}` : ''}
                         </div>
@@ -346,7 +349,7 @@ export function DataTable() {
                       <td className="px-2 py-2.5 text-right font-mono text-xs">{v.duration_sec}s</td>
                       <td className={`px-2 py-2.5 text-right font-mono text-sm font-bold ${scoreColor(sc?.total)}`}>
                         {runningScores.has(v.id) ? (
-                          <span className="animate-pulse text-xs font-normal text-amber-400">评分中</span>
+                          <span className="animate-pulse text-xs font-normal text-warning">{t('dataTable.scoringInline')}</span>
                         ) : (
                           sc?.total ?? '—'
                         )}
@@ -354,17 +357,17 @@ export function DataTable() {
                       <td className="whitespace-nowrap px-2 py-2.5 text-right font-mono text-xs">
                         {(() => {
                           const di = deepIndex.get(v.id)
-                          if (!di) return <span className="text-neutral-600">—</span>
+                          if (!di) return <span className="text-tertiary">—</span>
                           const cls =
                             di.grade === 'S'
-                              ? 'text-cyan-300 font-bold'
+                              ? 'text-accent font-bold'
                               : di.grade === 'A'
-                                ? 'text-neutral-200 font-bold'
-                                : 'text-neutral-500'
+                                ? 'text-primary font-bold'
+                                : 'text-secondary'
                           return (
                             <span className={cls}>
                               {di.index}
-                              <span className="ml-1 rounded bg-white/[0.06] px-1">{di.grade}</span>
+                              <span className="ml-1 rounded bg-fill px-1">{di.grade}</span>
                             </span>
                           )
                         })()}
@@ -372,13 +375,13 @@ export function DataTable() {
                     </tr>
 
                     {open && (
-                      <tr key={`${v.id}-detail`} className="border-b border-white/[0.06]">
-                        <td colSpan={COLS.length + 3} className="bg-black/20 px-4 py-0">
+                      <tr key={`${v.id}-detail`} className="border-b border-app">
+                        <td colSpan={COLS.length + 3} className="bg-surface px-4 py-0">
                           <div className="vm-row-detail grid grid-cols-[auto_1fr] gap-x-10 gap-y-4 py-4">
                             {/* 左：五维明细 */}
                             <div className="space-y-2">
-                              <div className="text-xs font-medium text-neutral-300">
-                                五维评分
+                              <div className="text-xs font-medium text-primary">
+                                {t('dataTable.fiveDim')}
                                 {sc && (
                                   <span className={`ml-2 font-mono text-sm font-bold ${scoreColor(sc.total && sc.total / 5)}`}>
                                     {sc.total}/50
@@ -386,10 +389,10 @@ export function DataTable() {
                                 )}
                               </div>
                               {sc ? (
-                                DIMS.map((d) => <DimBar key={d.key} label={d.label} value={sc[d.key] as number} />)
+                                DIMS.map((d) => <DimBar key={d.key} label={t('dataTable.' + d.label)} value={sc[d.key] as number} />)
                               ) : (
-                                <div className="text-xs text-neutral-600">
-                                  {v.status === 'transcribed' ? '未评分 — 点上方「批量评分」' : '需先完成转录'}
+                                <div className="text-xs text-tertiary">
+                                  {v.status === 'transcribed' ? t('dataTable.notScored') : t('dataTable.needTranscribe')}
                                 </div>
                               )}
                             </div>
@@ -398,14 +401,14 @@ export function DataTable() {
                             <div className="min-w-0 space-y-3">
                               {sc?.summary && (
                                 <div>
-                                  <div className="mb-1 text-xs font-medium text-neutral-300">内容摘要</div>
-                                  <p className="text-xs leading-relaxed text-neutral-400">{sc.summary}</p>
+                                  <div className="mb-1 text-xs font-medium text-primary">{t('dataTable.contentSummary')}</div>
+                                  <p className="text-xs leading-relaxed text-secondary">{sc.summary}</p>
                                 </div>
                               )}
                               {sc?.rationale && (
                                 <div>
-                                  <div className="mb-1 text-xs font-medium text-neutral-300">评分依据</div>
-                                  <p className="text-xs leading-relaxed text-neutral-400">{sc.rationale}</p>
+                                  <div className="mb-1 text-xs font-medium text-primary">{t('dataTable.scoringRationale')}</div>
+                                  <p className="text-xs leading-relaxed text-secondary">{sc.rationale}</p>
                                 </div>
                               )}
                               <div className="flex items-center gap-3 pt-1">
@@ -413,10 +416,10 @@ export function DataTable() {
                                 {hit && (
                                   <Link
                                     to={`/reports/${hit.id}`}
-                                    className="shrink-0 text-xs text-cyan-400 hover:underline"
+                                    className="shrink-0 text-xs text-accent hover:underline"
                                     onClick={(e) => e.stopPropagation()}
                                   >
-                                    完整报告 →
+                                    {t('dataTable.fullReport')}
                                   </Link>
                                 )}
                               </div>
@@ -430,8 +433,8 @@ export function DataTable() {
               })}
             </tbody>
           </table>
-          <div className="border-t border-white/[0.06] px-3 py-2 text-[11px] text-neutral-600">
-            五维 = 情绪/冲突/张力/信息差/共鸣（各 0-10，总分 0-50）· 抖音不公开播放数，播放列为 0 属正常
+          <div className="border-t border-app px-3 py-2 text-[11px] text-tertiary">
+            {t('dataTable.footnote')}
           </div>
         </div>
       )}

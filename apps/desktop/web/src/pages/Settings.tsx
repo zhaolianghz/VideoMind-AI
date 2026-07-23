@@ -6,11 +6,12 @@ import {
   importCookieFromBrowser,
   listBrowsers,
   listCookies,
-  PLATFORM_LABELS,
   uploadCookie,
 } from '../api/cookies'
 import { getPaths, PathsInfo } from '../api/system'
 import { getPreferences, putPreferences, Preferences } from '../api/preferences'
+import { useI18n } from '../i18n'
+import { ThemeSwitcher } from '../components/ThemeSwitcher'
 
 const errText = (e: unknown): string => {
   const anyErr = e as { response?: { data?: { detail?: string } }; message?: string }
@@ -26,20 +27,24 @@ function CookieRow({
   browsers: BrowserOption[]
   onChanged: () => void
 }) {
+  const { t } = useI18n()
   const [open, setOpen] = useState(false)
-  const [busy, setBusy] = useState<string | null>(null) // 正在读取的浏览器
+  const [busy, setBusy] = useState<string | null>(null)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [showManual, setShowManual] = useState(false)
   const [manual, setManual] = useState('')
 
-  const label = PLATFORM_LABELS[info.platform] ?? info.platform
+  const label = t('platformLabels.' + info.platform) || info.platform
 
   const doImport = async (browser: string) => {
     setBusy(browser)
     setMsg(null)
     try {
       const r = await importCookieFromBrowser(info.platform, browser)
-      setMsg({ ok: true, text: `已从 ${browser} 导入 ${r.cookies} 条 Cookie` })
+      setMsg({
+        ok: true,
+        text: t('settings.imported').replace('{browser}', browser).replace('{n}', String(r.cookies)),
+      })
       onChanged()
     } catch (e) {
       setMsg({ ok: false, text: errText(e) })
@@ -52,7 +57,7 @@ function CookieRow({
     setMsg(null)
     try {
       await uploadCookie(info.platform, manual)
-      setMsg({ ok: true, text: '已保存手动粘贴的 Cookie' })
+      setMsg({ ok: true, text: t('settings.manualSaved') })
       setManual('')
       setShowManual(false)
       onChanged()
@@ -73,41 +78,40 @@ function CookieRow({
         <span
           className={`h-2.5 w-2.5 rounded-full ${
             info.has_cookie
-              ? 'bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]'
-              : 'bg-neutral-600'
+              ? 'bg-accent'
+              : 'bg-fill'
           }`}
         />
         <div className="flex-1">
-          <div className="text-sm font-medium text-neutral-100">{label}</div>
-          <div className="text-xs text-neutral-500">
+          <div className="text-sm font-medium text-primary">{label}</div>
+          <div className="text-xs text-secondary">
             {info.has_cookie
-              ? `已配置 · ${(info.size / 1024).toFixed(1)} KB${
-                  info.updated_at ? ` · 更新于 ${info.updated_at.slice(0, 19).replace('T', ' ')}` : ''
+              ? `${t('settings.configured')} · ${(info.size / 1024).toFixed(1)} KB${
+                  info.updated_at
+                    ? ` · ${t('settings.updated')} ${info.updated_at.slice(0, 19).replace('T', ' ')}`
+                    : ''
                 }`
-              : '未配置 — 遇到“需要登录/确认不是机器人”时需导入'}
+              : t('settings.notConfigured')}
           </div>
         </div>
         {info.has_cookie && (
-          <button
-            onClick={doDelete}
-            className="text-xs text-neutral-500 transition hover:text-red-400"
-          >
-            清除
+          <button onClick={doDelete} className="text-xs text-secondary transition hover:text-danger">
+            {t('settings.clear')}
           </button>
         )}
         <button onClick={() => setOpen(!open)} className="vm-btn-neon text-xs">
-          {open ? '收起' : info.has_cookie ? '重新导入' : '导入'}
+          {open ? t('settings.collapse') : info.has_cookie ? t('settings.reimport') : t('settings.import')}
         </button>
       </div>
 
       {open && (
-        <div className="mt-4 space-y-3 border-t border-white/[0.06] pt-4">
-          <div className="text-xs text-neutral-400">
-            从浏览器一键导入（请先在浏览器中登录 {label}）：
+        <div className="mt-4 space-y-3 border-t border-app pt-4">
+          <div className="text-xs text-secondary">
+            {t('settings.browserImportHint').replace('{label}', label)}
           </div>
           {browsers.length === 0 ? (
-            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
-              未能获取浏览器列表（后端版本过旧或未连接），请重启应用后重试
+            <div className="rounded-lg border border-app bg-warning/10 px-3 py-2 text-xs text-warning">
+              {t('settings.noBrowsers')}
             </div>
           ) : (
             <div className="flex flex-wrap gap-2">
@@ -120,22 +124,19 @@ function CookieRow({
                     busy !== null && busy !== b.name ? 'opacity-40' : ''
                   }`}
                 >
-                  {busy === b.name ? '读取中…' : b.label}
+                  {busy === b.name ? t('settings.reading') : b.label}
                 </button>
               ))}
             </div>
           )}
-          <div className="text-[11px] leading-relaxed text-neutral-500">
-            macOS 首次读取 Chrome/Edge 会弹出钥匙串授权，请点“始终允许”；读取 Safari 需给本应用
-            开启“完全磁盘访问”。导入过程中建议先退出对应浏览器。
-          </div>
+          <div className="text-[11px] leading-relaxed text-secondary">{t('settings.keychainHint')}</div>
 
           {msg && (
             <div
               className={`rounded-lg border px-3 py-2 text-xs ${
                 msg.ok
-                  ? 'border-cyan-400/30 bg-cyan-400/10 text-cyan-300'
-                  : 'border-red-500/30 bg-red-500/10 text-red-300'
+                  ? 'border-accent/40 bg-accent/10 text-accent'
+                  : 'border-danger/30 bg-danger/10 text-danger'
               }`}
             >
               {msg.text}
@@ -144,9 +145,9 @@ function CookieRow({
 
           <button
             onClick={() => setShowManual(!showManual)}
-            className="text-xs text-neutral-500 underline-offset-2 transition hover:text-neutral-300 hover:underline"
+            className="text-xs text-secondary underline-offset-2 transition hover:text-primary hover:underline"
           >
-            {showManual ? '隐藏手动粘贴' : '高级：手动粘贴 Netscape 格式 Cookie'}
+            {showManual ? t('settings.manualHide') : t('settings.manualToggle')}
           </button>
           {showManual && (
             <div className="space-y-2">
@@ -157,12 +158,8 @@ function CookieRow({
                 placeholder={'# Netscape HTTP Cookie File\n.youtube.com\tTRUE\t/\tTRUE\t...'}
                 className="vm-input w-full font-mono text-xs"
               />
-              <button
-                onClick={doManualSave}
-                disabled={!manual.trim()}
-                className="vm-btn-primary text-xs disabled:opacity-40"
-              >
-                保存
+              <button onClick={doManualSave} disabled={!manual.trim()} className="vm-btn-primary text-xs disabled:opacity-40">
+                {t('settings.save')}
               </button>
             </div>
           )}
@@ -173,6 +170,7 @@ function CookieRow({
 }
 
 export function Settings() {
+  const { t } = useI18n()
   const [paths, setPaths] = useState<PathsInfo | null>(null)
   const [cookies, setCookies] = useState<CookieInfo[]>([])
   const [browsers, setBrowsers] = useState<BrowserOption[]>([])
@@ -195,30 +193,37 @@ export function Settings() {
     const next = { ...prefs, ...patch }
     setPrefs(next)
     putPreferences(patch)
-      .then(() => setPrefMsg('已保存，之后的转录任务生效'))
-      .catch(() => setPrefMsg('保存失败'))
+      .then(() => setPrefMsg(t('settings.prefSaved')))
+      .catch(() => setPrefMsg(t('settings.prefFail')))
   }
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
       <div>
-        <h1 className="text-xl font-semibold text-neutral-100">设置</h1>
-        <p className="mt-1 text-sm text-neutral-500">平台 Cookie 与本地存储路径</p>
+        <h1 className="text-xl font-semibold text-primary">{t('settings.title')}</h1>
+        <p className="mt-1 text-sm text-secondary">{t('settings.subtitle')}</p>
       </div>
 
       {err && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+        <div className="rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
           {err}
         </div>
       )}
 
       <section className="space-y-3">
         <div>
-          <h2 className="text-sm font-medium text-neutral-200">平台 Cookie</h2>
-          <p className="mt-1 text-xs text-neutral-500">
-            YouTube 等平台风控时（提示 Sign in to confirm you&apos;re not a
-            bot）需要登录态。在浏览器中登录后，点击“导入”即可一键读取，无需手动导出。
-          </p>
+          <h2 className="text-sm font-medium text-primary">{t('settings.appearance')}</h2>
+          <p className="mt-1 text-xs text-secondary">{t('settings.appearanceHint')}</p>
+        </div>
+        <div className="max-w-xs">
+          <ThemeSwitcher variant="full" />
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-sm font-medium text-primary">{t('settings.cookieTitle')}</h2>
+          <p className="mt-1 text-xs text-secondary">{t('settings.cookieHint')}</p>
         </div>
         <div className="space-y-3">
           {cookies.map((c) => (
@@ -229,50 +234,48 @@ export function Settings() {
 
       <section className="space-y-3">
         <div>
-          <h2 className="text-sm font-medium text-neutral-200">转录偏好</h2>
-          <p className="mt-1 text-xs text-neutral-500">
-            自动转录与手动转录的默认参数（单次任务里手动指定的优先）
-          </p>
+          <h2 className="text-sm font-medium text-primary">{t('settings.prefTitle')}</h2>
+          <p className="mt-1 text-xs text-secondary">{t('settings.prefHint')}</p>
         </div>
         <div className="vm-card flex flex-wrap items-center gap-4 p-4 text-sm">
           <label className="flex items-center gap-2">
-            <span className="text-xs text-neutral-400">Whisper 模型</span>
+            <span className="text-xs text-secondary">{t('settings.whisperModel')}</span>
             <select
               className="vm-select h-9"
               value={prefs.transcribe_model || 'auto'}
               onChange={(e) => savePref({ transcribe_model: e.target.value })}
             >
-              <option value="auto">自动（按时长选择）</option>
-              <option value="tiny">tiny（最快）</option>
+              <option value="auto">{t('settings.autoModel')}</option>
+              <option value="tiny">tiny</option>
               <option value="base">base</option>
               <option value="small">small</option>
               <option value="medium">medium</option>
-              <option value="large-v3">large-v3（最准）</option>
+              <option value="large-v3">large-v3</option>
             </select>
           </label>
           <label className="flex items-center gap-2">
-            <span className="text-xs text-neutral-400">语言</span>
+            <span className="text-xs text-secondary">{t('settings.language')}</span>
             <select
               className="vm-select h-9"
               value={prefs.transcribe_language || 'auto'}
               onChange={(e) => savePref({ transcribe_language: e.target.value })}
             >
-              <option value="auto">自动检测</option>
+              <option value="auto">{t('settings.autoDetect')}</option>
               <option value="zh">中文</option>
-              <option value="en">英文</option>
+              <option value="en">English</option>
             </select>
           </label>
-          {prefMsg && <span className="text-xs text-cyan-300">{prefMsg}</span>}
+          {prefMsg && <span className="text-xs text-accent">{prefMsg}</span>}
         </div>
       </section>
 
       {paths && (
         <section className="space-y-3">
-          <h2 className="text-sm font-medium text-neutral-200">本地存储</h2>
-          <div className="vm-card divide-y divide-white/[0.06] text-sm">
+          <h2 className="text-sm font-medium text-primary">{t('settings.storageTitle')}</h2>
+          <div className="vm-card divide-y divide-app text-sm">
             {Object.entries(paths).map(([k, v]) => (
               <div key={k} className="flex items-center justify-between gap-4 px-4 py-3">
-                <span className="shrink-0 text-neutral-400">{k}</span>
+                <span className="shrink-0 text-secondary">{k}</span>
                 <span className="vm-url">{String(v)}</span>
               </div>
             ))}

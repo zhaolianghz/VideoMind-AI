@@ -2,6 +2,7 @@
 import uuid
 from datetime import datetime, timezone
 
+from sqlalchemy import JSON, Column
 from sqlmodel import Field, SQLModel
 
 
@@ -20,6 +21,10 @@ class ModelProvider(SQLModel, table=True):
     # V1 明文存储（对齐 clawbox）；V2 迁移到 keyring
     api_key: str = ""
     default_model: str = ""
+    # 可选模型列表（clawbox 导入 / 手动维护），分析时供下拉选择
+    models: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    # 默认服务商：分析时预选；全表至多一个为 True
+    is_default: bool = False
     enabled: bool = True
     created_at: datetime = Field(default_factory=_utcnow)
     updated_at: datetime = Field(default_factory=_utcnow)

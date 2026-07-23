@@ -10,6 +10,8 @@ class ProviderBase(BaseModel):
     base_url: str = ""
     api_key: str = ""
     default_model: str = ""
+    models: list[str] = []
+    is_default: bool = False
     enabled: bool = True
 
 
@@ -23,6 +25,8 @@ class ProviderUpdate(BaseModel):
     base_url: str | None = None
     api_key: str | None = None  # None 或空串 = 不修改
     default_model: str | None = None
+    models: list[str] | None = None
+    is_default: bool | None = None
     enabled: bool | None = None
 
 
@@ -48,3 +52,11 @@ class ProviderRead(ProviderBase):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ClawboxImportResult(BaseModel):
+    """一键导入 clawbox 服务商的结果统计。"""
+
+    created: int
+    updated: int
+    skipped: int

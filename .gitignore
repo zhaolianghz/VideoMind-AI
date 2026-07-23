@@ -38,3 +38,6 @@ Thumbs.db
 # Sidecar 构建产物（由 scripts/build_sidecar.sh 生成，不提交）
 apps/desktop/src-tauri/bin/videomind-sidecar.tar.gz
 apps/desktop/src-tauri/bin/videomind-sidecar/
+
+# CodeGraph
+.codegraph/

@@ -5,6 +5,10 @@ export interface Provider {
   base_url: string
   api_key: string
   default_model: string
+  /** 可选模型列表（clawbox 导入/手动维护），分析时下拉可选 */
+  models?: string[]
+  /** 默认服务商：分析时预选，全表至多一个 */
+  is_default?: boolean
   enabled: boolean
   created_at: string
   updated_at: string

@@ -96,6 +96,23 @@ def _migrate() -> None:
             conn.execute(
                 text("ALTER TABLE analyses ADD COLUMN progress INTEGER DEFAULT 0")
             )
+        pcols = {
+            row[1]
+            for row in conn.execute(
+                text("PRAGMA table_info(model_providers)")
+            ).fetchall()
+        }
+        if pcols and "models" not in pcols:
+            conn.execute(
+                text("ALTER TABLE model_providers ADD COLUMN models JSON DEFAULT '[]'")
+            )
+        if pcols and "is_default" not in pcols:
+            conn.execute(
+                text(
+                    "ALTER TABLE model_providers "
+                    "ADD COLUMN is_default BOOLEAN DEFAULT 0"
+                )
+            )
     _backfill_creators()
 
 

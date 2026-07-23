@@ -12,5 +12,11 @@ export default defineConfig({
     proxy: {
       '/api': 'http://127.0.0.1:18791',
     },
+    // 字体装在 monorepo 根 node_modules（@fontsource-variable），
+    // 默认 fs.allow 仅限 web/；放开到上三级仓库根，消除字体 403 告警。
+    // 相对路径以本 config 所在目录（web/）为基准解析。
+    fs: {
+      allow: ['../../..'],
+    },
   },
 })
