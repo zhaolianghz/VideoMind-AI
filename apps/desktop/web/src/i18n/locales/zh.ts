@@ -91,6 +91,7 @@ export const zh = {
     noTranscript: '无字幕',
     report: '分析报告',
     export: '导出',
+    analyze: '去分析',
     noReport: '无分析报告',
     goAnalyze: '去发起分析 →',
   },

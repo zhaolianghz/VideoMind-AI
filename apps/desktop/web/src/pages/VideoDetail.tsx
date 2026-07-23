@@ -15,6 +15,8 @@ function fmtTs(sec: number): string {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
 }
 
+const PROCESSING = new Set(['running', 'pending'])
+
 export function VideoDetail() {
   const { t } = useI18n()
   const { id = '' } = useParams()
@@ -33,6 +35,16 @@ export function VideoDetail() {
       if (a[0]) setSelAnalysis(a[0].id)
     })
   }, [id])
+
+  // 有分析在跑时每 3s 刷新（转录+分析一条龙可能耗时数分钟）
+  useEffect(() => {
+    if (!analyses.some((a) => PROCESSING.has(a.status))) return
+    const timer = setInterval(() => {
+      listAnalyses(id).then(setAnalyses)
+      getTranscript(id).then(setTranscript).catch(() => {})
+    }, 3000)
+    return () => clearInterval(timer)
+  }, [id, analyses])
 
   const jumpTo = (tt: number) => {
     if (videoRef.current) videoRef.current.currentTime = tt
@@ -93,37 +105,47 @@ export function VideoDetail() {
         <div className="flex flex-col overflow-hidden rounded-xl border border-app bg-surface">
           <div className="flex items-center gap-2 border-b border-app px-4 py-2">
             <span className="text-xs text-secondary">{t('videoDetail.report')}</span>
-            {analyses.length > 0 && (
-              <select
-                className="ml-auto rounded border border-app bg-surface px-2 py-0.5 text-xs"
-                value={selAnalysis}
-                onChange={(e) => setSelAnalysis(e.target.value)}
+            <div className="ml-auto flex items-center gap-2">
+              {analyses.length > 0 && (
+                <select
+                  className="rounded border border-app bg-surface px-2 py-0.5 text-xs"
+                  value={selAnalysis}
+                  onChange={(e) => setSelAnalysis(e.target.value)}
+                >
+                  {analyses.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {TEMPLATE_LABELS[a.template] || a.template}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <Link
+                to={`/library?analyze=${id}`}
+                className="rounded border border-accent/40 px-2 py-0.5 text-xs text-accent hover:bg-accent/10"
               >
-                {analyses.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {TEMPLATE_LABELS[a.template] || a.template}
-                  </option>
-                ))}
-              </select>
-            )}
-            {current && (
-              // 桌面 webview 不支持 <a download>（会把整个界面导航到导出内容），走后端落盘
-              <button
-                onClick={() => {
-                  setExportMsg(t('reportDetail.exporting'))
-                  saveReport(current.id, 'pdf')
-                    .then((r) => setExportMsg(`${t('reportDetail.savedTo')}${r.filename}`))
-                    .catch((e: unknown) =>
-                      setExportMsg(
-                        `${t('reportDetail.exportFail')}${e instanceof Error ? e.message : String(e)}`,
-                      ),
-                    )
-                }}
-                className="rounded border border-success/40 px-2 py-0.5 text-xs text-success hover:bg-success/10"
-              >
-                {t('videoDetail.export')}
-              </button>
-            )}
+                {t('videoDetail.analyze')}
+              </Link>
+              {current?.status === 'done' && (
+                // 桌面 webview 不支持 <a download>（会把整个界面导航到导出内容），走后端落盘
+                <button
+                  onClick={() => {
+                    setExportMsg(t('reportDetail.exporting'))
+                    saveReport(current.id, 'pdf')
+                      .then((r) => setExportMsg(`${t('reportDetail.savedTo')}${r.filename}`))
+                      .catch((e: unknown) => {
+                        const detail = (e as { response?: { data?: { detail?: string } } })
+                          ?.response?.data?.detail
+                        setExportMsg(
+                          `${t('reportDetail.exportFail')}${detail ?? (e instanceof Error ? e.message : String(e))}`,
+                        )
+                      })
+                  }}
+                  className="rounded border border-success/40 px-2 py-0.5 text-xs text-success hover:bg-success/10"
+                >
+                  {t('videoDetail.export')}
+                </button>
+              )}
+            </div>
           </div>
           {exportMsg && (
             <div className="border-b border-app bg-accent/10 px-4 py-1.5 text-xs text-accent">
@@ -139,7 +161,24 @@ export function VideoDetail() {
                 </Link>
               </div>
             ) : current ? (
-              <ParsedView data={current.parsed} />
+              current.status === 'done' ? (
+                <ParsedView data={current.parsed} />
+              ) : PROCESSING.has(current.status) ? (
+                <div className="py-10 text-center text-sm text-secondary">
+                  {t('reportDetail.analyzing')}
+                  {current.progress ? ` ${current.progress}%` : ''}
+                </div>
+              ) : (
+                <div className="space-y-4 py-8 text-center text-sm">
+                  <div className="mx-auto max-w-md rounded-lg border border-danger/30 bg-danger/10 p-3 text-left text-danger">
+                    {t('reportDetail.analysisFailed')}
+                    {current.error ? `：${current.error}` : ''}
+                  </div>
+                  <Link to={`/library?analyze=${id}`} className="inline-block text-accent">
+                    {t('videoDetail.goAnalyze')}
+                  </Link>
+                </div>
+              )
             ) : null}
           </div>
         </div>

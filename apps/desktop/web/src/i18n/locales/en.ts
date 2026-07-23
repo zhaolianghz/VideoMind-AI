@@ -91,6 +91,7 @@ export const en = {
     noTranscript: 'No transcript',
     report: 'Report',
     export: 'Export',
+    analyze: 'Analyze',
     noReport: 'No report',
     goAnalyze: 'Analyze →',
   },
