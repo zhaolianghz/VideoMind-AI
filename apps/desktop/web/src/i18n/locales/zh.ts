@@ -238,6 +238,7 @@ export const zh = {
     commentsTitle: '热门评论（{n} 条，按点赞排序）', refetch: '重新抓取', anonymous: '匿名',
     analysisSubmitted: '✓ 分析已提交，后台运行中', openReport: '打开报告页查看进度 →',
     noProvider: '还没有可用的模型服务商。', goConfig: '去配置 →',
+    autoTranscribeHint: '该视频还未转录：提交后会自动「转录 → 分析」一条龙，耗时稍长。',
     template: '模板', modelPlaceholder: '模型 ID（留空用服务商默认）', customModel: '手动输入模型…',
     submitting: '提交中…', startAnalyze: '开始分析',
     creatorVideos: '{v} 个视频 · {t} 个已转录', avgScore: '均分 {s}/50',

@@ -314,7 +314,16 @@ def run_analyze(
                     select(Transcript).where(Transcript.video_id == a.video_id)
                 ).first()
                 if not transcript:
-                    raise RuntimeError("该视频尚无字幕，请先完成转录")
+                    # 没字幕不报错：自动先转录（含抽音频），转完继续分析。
+                    # run_transcribe 失败会抛异常 → 外层 except 把原因写进分析记录。
+                    if not video:
+                        raise RuntimeError("该视频尚无字幕，请先完成转录")
+                    run_transcribe(a.video_id)
+                    transcript = s.exec(
+                        select(Transcript).where(Transcript.video_id == a.video_id)
+                    ).first()
+                    if not transcript:
+                        raise RuntimeError("自动转录未产出字幕，请到视频库重试转录")
                 segs = json.loads(transcript.segments_json)
                 text = "\n".join(
                     f"[{_fmt_ts_sec(seg['start'])}] {seg['text']}" for seg in segs

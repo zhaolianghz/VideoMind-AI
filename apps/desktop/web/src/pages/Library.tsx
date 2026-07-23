@@ -679,6 +679,11 @@ function AnalyzePanel({ video, onClose }: { video: Video; onClose: () => void })
         </div>
       ) : (
         <div className="space-y-3">
+          {video.status !== 'transcribed' && (
+            <div className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+              {t('library.autoTranscribeHint')}
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="mr-1 text-xs text-secondary">{t('library.template')}</span>
             {ANALYSIS_TEMPLATES.map((tp) => (
