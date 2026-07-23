@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { getVideo } from '../api/videos'
 import { getTranscript } from '../api/transcripts'
-import { listAnalyses } from '../api/analyses'
+import { listAnalyses, saveReport } from '../api/analyses'
 import { api } from '../api/client'
 import type { Analysis, Transcript, Video } from '../types'
 import { TEMPLATE_LABELS } from '../types'
@@ -22,6 +22,7 @@ export function VideoDetail() {
   const [transcript, setTranscript] = useState<Transcript | null>(null)
   const [analyses, setAnalyses] = useState<Analysis[]>([])
   const [selAnalysis, setSelAnalysis] = useState('')
+  const [exportMsg, setExportMsg] = useState('')
   const videoRef = useRef<HTMLVideoElement>(null)
 
   useEffect(() => {
@@ -106,14 +107,29 @@ export function VideoDetail() {
               </select>
             )}
             {current && (
-              <a
-                href={`${api.defaults.baseURL ?? '/api/v1'}/reports/${current.id}/export?fmt=pdf`}
+              // 桌面 webview 不支持 <a download>（会把整个界面导航到导出内容），走后端落盘
+              <button
+                onClick={() => {
+                  setExportMsg(t('reportDetail.exporting'))
+                  saveReport(current.id, 'pdf')
+                    .then((r) => setExportMsg(`${t('reportDetail.savedTo')}${r.filename}`))
+                    .catch((e: unknown) =>
+                      setExportMsg(
+                        `${t('reportDetail.exportFail')}${e instanceof Error ? e.message : String(e)}`,
+                      ),
+                    )
+                }}
                 className="rounded border border-success/40 px-2 py-0.5 text-xs text-success hover:bg-success/10"
               >
                 {t('videoDetail.export')}
-              </a>
+              </button>
             )}
           </div>
+          {exportMsg && (
+            <div className="border-b border-app bg-accent/10 px-4 py-1.5 text-xs text-accent">
+              {exportMsg}
+            </div>
+          )}
           <div className="flex-1 overflow-auto p-4">
             {analyses.length === 0 ? (
               <div className="py-8 text-center text-sm text-secondary">
