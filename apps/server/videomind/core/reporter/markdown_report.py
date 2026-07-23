@@ -4,9 +4,9 @@ from typing import Any
 
 LABELS: dict[str, str] = {
     "summary": "摘要", "point": "观点", "evidence": "论据",
-    "target_users": "目标用户", "monetization": "盈利方式", "growth_strategy": "增长策略",
+    "monetization": "盈利方式", "growth_strategy": "增长策略",
     "competitive_edge": "竞争优势", "risks": "风险", "opportunities": "机会",
-    "chapter": "章节", "topics": "知识点", "knowledge_points": "知识点列表",
+    "chapter": "章节", "knowledge_points": "知识点列表",
     "cases": "案例", "target_audience": "适合人群",
     "title_patterns": "标题规律", "hook_analysis": "开头钩子分析", "content_structure": "内容结构",
     "spread_mechanism": "传播机制", "replication_model": "复制模型",
