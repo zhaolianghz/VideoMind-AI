@@ -219,6 +219,8 @@ export const zh = {
     pickUnavailable: '开发模式（浏览器）不支持选择目录，打包为桌面应用后可用。',
     mediaDirNote: '更改媒体目录后，已下载的视频仍在原位置可正常访问；新下载的视频会存到新目录。',
     storageTitle: '本地存储',
+    aboutTitle: '关于', aboutHint: 'MIT 开源协议',
+    checkUpdate: '检查更新',
   },
   library: {
     title: '视频库', subtitle: '已采集视频 · 每 3s 自动刷新状态',

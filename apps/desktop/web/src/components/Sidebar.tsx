@@ -41,10 +41,7 @@ export function Sidebar() {
         ))}
       </nav>
       <div className="flex flex-col gap-2 border-t border-app p-3">
-        <div className="flex items-center justify-between gap-2">
-          <LanguageSwitcher />
-          <span className="font-mono text-xs text-secondary">v0.1.0</span>
-        </div>
+        <LanguageSwitcher />
         <ThemeSwitcher />
       </div>
     </aside>

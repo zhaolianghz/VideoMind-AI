@@ -14,6 +14,10 @@ import { useI18n } from '../i18n'
 import { ThemeSwitcher } from '../components/ThemeSwitcher'
 import { isTauri, pickDirectory } from '../utils/tauri'
 
+const APP_VERSION = '0.1.0'
+const APP_REPO = 'https://github.com/lxw15337674/VideoMind-AI'
+const APP_RELEASES = `${APP_REPO}/releases`
+
 const errText = (e: unknown): string => {
   const anyErr = e as { response?: { data?: { detail?: string } }; message?: string }
   return anyErr?.response?.data?.detail ?? anyErr?.message ?? String(e)
@@ -185,6 +189,7 @@ export function Settings() {
   const [storageMsg, setStorageMsg] = useState('')
   const canPick = isTauri()
   const [err, setErr] = useState('')
+  const [version, setVersion] = useState(APP_VERSION)
 
   const refreshCookies = () => {
     listCookies().then(setCookies).catch((e) => setErr(errText(e)))
@@ -195,6 +200,12 @@ export function Settings() {
     listBrowsers().then(setBrowsers).catch(() => setBrowsers([]))
     getPreferences().then(setPrefs).catch(() => undefined)
     refreshCookies()
+    if (isTauri()) {
+      import('@tauri-apps/api/app')
+        .then((m) => m.getVersion())
+        .then(setVersion)
+        .catch(() => undefined)
+    }
   }, [])
 
   const savePref = (patch: Partial<Preferences>) => {
@@ -383,6 +394,36 @@ export function Settings() {
           </div>
         </section>
       )}
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-medium text-primary">{t('settings.aboutTitle')}</h2>
+        <div className="vm-card flex flex-wrap items-center justify-between gap-4 p-4 text-sm">
+          <div className="min-w-0">
+            <div className="text-primary">
+              VideoMind AI <span className="vm-url">v{version}</span>
+            </div>
+            <div className="mt-0.5 text-xs text-secondary">{t('settings.aboutHint')}</div>
+          </div>
+          <div className="flex shrink-0 items-center gap-4">
+            <a
+              href={APP_RELEASES}
+              target="_blank"
+              rel="noreferrer"
+              className="vm-btn-primary text-xs"
+            >
+              {t('settings.checkUpdate')}
+            </a>
+            <a
+              href={APP_REPO}
+              target="_blank"
+              rel="noreferrer"
+              className="text-xs text-secondary transition-colors hover:text-accent"
+            >
+              GitHub ↗
+            </a>
+          </div>
+        </div>
+      </section>
     </div>
   )
 }

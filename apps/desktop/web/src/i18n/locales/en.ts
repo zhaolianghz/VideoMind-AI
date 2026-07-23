@@ -219,6 +219,8 @@ export const en = {
     pickUnavailable: 'Directory picker is unavailable in browser dev mode; it works in the packaged desktop app.',
     mediaDirNote: 'After changing the media directory, existing downloads stay accessible in the old location; new downloads go to the new directory.',
     storageTitle: 'Local Storage',
+    aboutTitle: 'About', aboutHint: 'MIT licensed · open source',
+    checkUpdate: 'Check for updates',
   },
   library: {
     title: 'Library', subtitle: 'Collected videos · auto-refresh 3s',
