@@ -7,7 +7,7 @@ Thanks for your interest in contributing! 🎉
 ```bash
 # Backend (Python 3.11+)
 cd apps/server
-pip install -e ".[dev]"
+pip install -e ".[all]"   # dev + llm + asr + report
 uvicorn videomind.main:app --reload --port 18791
 
 # Frontend (Node 20+)

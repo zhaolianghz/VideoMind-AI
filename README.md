@@ -40,7 +40,7 @@ All running inside one desktop app — a Python backend (FastAPI) spawned as a s
 ```bash
 # 1. Backend (Python 3.11+)
 cd apps/server
-pip install -e ".[dev]"
+pip install -e ".[all]"   # = dev + llm + asr + report extras
 uvicorn videomind.main:app --reload --port 18791
 
 # 2. Frontend (Node 20+) — another terminal

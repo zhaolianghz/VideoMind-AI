@@ -33,6 +33,10 @@ dev = [
     "httpx>=0.27",
     "ruff>=0.6",
 ]
+all = [
+    # 一键装齐：开发 + LLM + ASR + 报告导出
+    "videomind[dev,llm,asr,report]",
+]
 
 [project.scripts]
 videomind = "videomind.main:run"

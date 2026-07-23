@@ -9,7 +9,7 @@ help:
 	@echo "  make build    - build frontend + desktop bundle"
 
 install:
-	cd apps/server && pip install -e ".[dev]"
+	cd apps/server && pip install -e ".[all]"
 	cd apps/desktop/web && npm install
 
 server:
