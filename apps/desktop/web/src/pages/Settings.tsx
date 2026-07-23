@@ -213,9 +213,9 @@ export function Settings() {
         .then(([p, pa]) => {
           setPrefs(p)
           setPaths(pa)
-          setStorageMsg('已更新存储目录')
+          setStorageMsg(t('settings.dirUpdated'))
         })
-        .catch(() => setStorageMsg('更新失败'))
+        .catch(() => setStorageMsg(t('settings.dirUpdateFail')))
     })
   }
 
@@ -225,9 +225,9 @@ export function Settings() {
       .then(([p, pa]) => {
         setPrefs(p)
         setPaths(pa)
-        setStorageMsg('已恢复默认目录')
+        setStorageMsg(t('settings.dirRestored'))
       })
-      .catch(() => setStorageMsg('更新失败'))
+      .catch(() => setStorageMsg(t('settings.dirUpdateFail')))
   }
 
   return (
@@ -304,16 +304,14 @@ export function Settings() {
 
       <section className="space-y-3">
         <div>
-          <h2 className="text-sm font-medium text-neutral-200">存储目录</h2>
-          <p className="mt-1 text-xs text-neutral-500">
-            自定义视频下载与报告导出的位置，留空使用默认值。
-          </p>
+          <h2 className="text-sm font-medium text-primary">{t('settings.storageDirTitle')}</h2>
+          <p className="mt-1 text-xs text-secondary">{t('settings.storageDirHint')}</p>
         </div>
-        <div className="vm-card divide-y divide-white/[0.06]">
+        <div className="vm-card divide-y divide-separator">
           <div className="flex items-center justify-between gap-4 px-4 py-3">
             <div className="min-w-0">
-              <div className="text-sm text-neutral-200">媒体目录（下载的音视频）</div>
-              <div className="vm-url mt-0.5">{paths?.media_dir ?? '加载中…'}</div>
+              <div className="text-sm text-primary">{t('settings.mediaDirLabel')}</div>
+              <div className="vm-url mt-0.5">{paths?.media_dir ?? t('common.loading')}</div>
             </div>
             <div className="flex shrink-0 items-center gap-3">
               <button
@@ -321,22 +319,22 @@ export function Settings() {
                 disabled={!canPick}
                 className="vm-btn-neon text-xs disabled:opacity-40"
               >
-                更改
+                {t('settings.change')}
               </button>
               {prefs.media_dir && (
                 <button
                   onClick={() => resetDir('media_dir')}
-                  className="text-xs text-neutral-500 transition hover:text-red-400"
+                  className="text-xs text-tertiary transition hover:text-danger"
                 >
-                  恢复默认
+                  {t('settings.resetDefault')}
                 </button>
               )}
             </div>
           </div>
           <div className="flex items-center justify-between gap-4 px-4 py-3">
             <div className="min-w-0">
-              <div className="text-sm text-neutral-200">报告目录（导出位置）</div>
-              <div className="vm-url mt-0.5">{paths?.report_dir ?? '加载中…'}</div>
+              <div className="text-sm text-primary">{t('settings.reportDirLabel')}</div>
+              <div className="vm-url mt-0.5">{paths?.report_dir ?? t('common.loading')}</div>
             </div>
             <div className="flex shrink-0 items-center gap-3">
               <button
@@ -344,31 +342,31 @@ export function Settings() {
                 disabled={!canPick}
                 className="vm-btn-neon text-xs disabled:opacity-40"
               >
-                更改
+                {t('settings.change')}
               </button>
               {prefs.report_dir && (
                 <button
                   onClick={() => resetDir('report_dir')}
-                  className="text-xs text-neutral-500 transition hover:text-red-400"
+                  className="text-xs text-tertiary transition hover:text-danger"
                 >
-                  恢复默认
+                  {t('settings.resetDefault')}
                 </button>
               )}
             </div>
           </div>
         </div>
         {storageMsg && (
-          <div className="rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-xs text-cyan-300">
+          <div className="rounded-lg border border-accent/40 bg-accent/10 px-3 py-2 text-xs text-accent">
             {storageMsg}
           </div>
         )}
         {!canPick && (
-          <div className="text-[11px] text-amber-400/80">
-            开发模式（浏览器）不支持选择目录，打包为桌面应用后可用。
+          <div className="text-[11px] text-warning">
+            {t('settings.pickUnavailable')}
           </div>
         )}
-        <div className="text-[11px] leading-relaxed text-neutral-500">
-          更改媒体目录后，已下载的视频仍在原位置可正常访问；新下载的视频会存到新目录。
+        <div className="text-[11px] leading-relaxed text-tertiary">
+          {t('settings.mediaDirNote')}
         </div>
       </section>
 
