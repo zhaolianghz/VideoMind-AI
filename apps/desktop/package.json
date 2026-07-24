@@ -1,7 +1,7 @@
 {
   "name": "videomind-desktop",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.1.0",
   "scripts": {
     "tauri": "tauri",
     "build": "tauri build",
