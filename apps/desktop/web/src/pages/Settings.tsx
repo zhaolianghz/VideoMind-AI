@@ -332,14 +332,12 @@ export function Settings() {
               >
                 {t('settings.change')}
               </button>
-              {prefs.media_dir && (
-                <button
-                  onClick={() => resetDir('media_dir')}
-                  className="text-xs text-tertiary transition hover:text-danger"
-                >
-                  {t('settings.resetDefault')}
-                </button>
-              )}
+              <button
+                onClick={() => resetDir('media_dir')}
+                className="text-xs text-tertiary transition hover:text-danger"
+              >
+                {t('settings.resetDefault')}
+              </button>
             </div>
           </div>
           <div className="flex items-center justify-between gap-4 px-4 py-3">
@@ -355,14 +353,12 @@ export function Settings() {
               >
                 {t('settings.change')}
               </button>
-              {prefs.report_dir && (
-                <button
-                  onClick={() => resetDir('report_dir')}
-                  className="text-xs text-tertiary transition hover:text-danger"
-                >
-                  {t('settings.resetDefault')}
-                </button>
-              )}
+              <button
+                onClick={() => resetDir('report_dir')}
+                className="text-xs text-tertiary transition hover:text-danger"
+              >
+                {t('settings.resetDefault')}
+              </button>
             </div>
           </div>
         </div>
