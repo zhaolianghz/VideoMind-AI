@@ -4,8 +4,7 @@ from collections.abc import Callable
 from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
-
-import yt_dlp
+from typing import TYPE_CHECKING
 
 from .cookies import resolve_cookiefile
 from .platforms import (
@@ -15,6 +14,24 @@ from .platforms import (
     platform_opts,
     resolve_short_url,
 )
+
+
+if TYPE_CHECKING:
+    # 仅供类型检查器解析 yt_dlp 名字；运行时由下面 __getattr__ 延迟导入
+    import yt_dlp
+
+
+def __getattr__(name):
+    """延迟导入 yt_dlp（~114ms + pydantic 链），移出 sidecar 启动 import 路径。
+
+    yt_dlp 仅在真正采集时才用，没必要在 FastAPI 启动时加载。模块级 __getattr__
+    让 4 处 `yt_dlp.YoutubeDL(...)` 调用点零改动，首次访问时才 import 并缓存到全局。
+    """
+    if name == "yt_dlp":
+        import yt_dlp as _m
+        globals()["yt_dlp"] = _m
+        return _m
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 class UnsupportedChannelURL(Exception):

@@ -420,6 +420,36 @@ h1, .text-2xl, .text-3xl { letter-spacing: -0.02em; }
   .owl-float, .owl-eye, .owl-glow, .owl-dots span { animation: none; }
 }
 
+/* === 启动加载屏 v2：平台 logo 环绕猫头鹰，依次点亮 === */
+.vm-splash { display:flex; flex-direction:column; align-items:center; gap:26px; }
+.vm-splash-stage { position:relative; width:300px; height:300px; }
+/* 旋转光弧（conic + radial mask 切出细环）*/
+.vm-splash-ring {
+  position:absolute; inset:18px; border-radius:50%;
+  background: conic-gradient(from 0deg, transparent 0deg, var(--accent) 36deg, transparent 130deg);
+  opacity:.22;
+  -webkit-mask: radial-gradient(circle, transparent 56%, #000 57%, #000 61%, transparent 62%);
+          mask: radial-gradient(circle, transparent 56%, #000 57%, #000 61%, transparent 62%);
+  animation: vm-ring-spin 7s linear infinite;
+}
+@keyframes vm-ring-spin { to { transform: rotate(360deg); } }
+/* 平台徽标：静止分布在圆周上，依次脉冲点亮 */
+.vm-splash-badge {
+  position:absolute; width:46px; height:46px; transform: translate(-50%,-50%);
+  display:flex; align-items:center; justify-content:center; border-radius:13px;
+  background: var(--surface); color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--border);
+  animation: vm-badge-pulse 2.6s ease-in-out infinite;
+}
+@keyframes vm-badge-pulse {
+  0%,100% { opacity:.32; transform: translate(-50%,-50%) scale(.85); box-shadow: inset 0 0 0 1px var(--border); }
+  45%     { opacity:1; transform: translate(-50%,-50%) scale(1.12); box-shadow: 0 0 22px var(--accent), inset 0 0 0 1px var(--accent); }
+}
+.vm-splash-core { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+@media (prefers-reduced-motion: reduce) {
+  .vm-splash-ring, .vm-splash-badge { animation: none; }
+}
+
 /* === 无障碍：减少透明 / 增强对比 === */
 @media (prefers-reduced-transparency: reduce) {
   :root { --material: var(--surface); }
