@@ -15,7 +15,7 @@ import { ThemeSwitcher } from '../components/ThemeSwitcher'
 import { isTauri, pickDirectory } from '../utils/tauri'
 
 const APP_VERSION = '0.1.0'
-const APP_REPO = 'https://github.com/lxw15337674/VideoMind-AI'
+const APP_REPO = 'https://github.com/zhaolianghz/VideoMind-AI'
 const APP_RELEASES = `${APP_REPO}/releases`
 
 const errText = (e: unknown): string => {
