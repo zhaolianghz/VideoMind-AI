@@ -19,6 +19,16 @@ pub fn get_api_base(state: tauri::State<'_, AppState>) -> Option<String> {
         .map(|s| s.api_base())
 }
 
+/// 启动阶段（starting | extracting | ready），splash 据此切换文案。
+#[tauri::command]
+pub fn get_boot_stage(state: tauri::State<'_, AppState>) -> String {
+    state
+        .boot_stage
+        .lock()
+        .map(|s| s.clone())
+        .unwrap_or_else(|_| "starting".into())
+}
+
 const DOUYIN_URL: &str = "https://www.douyin.com/";
 /// yt-dlp 抖音提取器可用的最小匿名 cookie 集合（实测得出，均不含登录态）
 const REQUIRED_COOKIES: [&str; 4] = ["ttwid", "s_v_web_id", "odin_tt", "passport_csrf_token"];

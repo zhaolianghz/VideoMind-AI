@@ -32,8 +32,35 @@ fn extracted_exe(app: &AppHandle) -> Option<PathBuf> {
     Some(base.join("sidecar").join("videomind-sidecar").join(exe_name()))
 }
 
+/// 归档指纹：大小 + 首尾 256KB 内容采样哈希（FNV-1a）。
+/// 不用 mtime——每次重新打包都会刷新 mtime，导致内容未变也触发 30s 级重解压。
+fn archive_fingerprint(archive: &PathBuf) -> std::io::Result<String> {
+    use std::io::{Read, Seek, SeekFrom};
+
+    let meta = fs::metadata(archive)?;
+    let len = meta.len();
+    let mut f = fs::File::open(archive)?;
+    let mut hash: u64 = 0xcbf29ce484222325;
+    let mut feed = |buf: &[u8], h: &mut u64| {
+        for b in buf {
+            *h ^= u64::from(*b);
+            *h = h.wrapping_mul(0x100000001b3);
+        }
+    };
+    let mut head = vec![0u8; 256 * 1024];
+    let n = f.read(&mut head)?;
+    feed(&head[..n], &mut hash);
+    if len > 512 * 1024 {
+        f.seek(SeekFrom::End(-(256 * 1024)))?;
+        let mut tail = vec![0u8; 256 * 1024];
+        let n = f.read(&mut tail)?;
+        feed(&tail[..n], &mut hash);
+    }
+    Ok(format!("{len}-{hash:016x}"))
+}
+
 /// 首次启动从 resource (tar.gz) 解压 onedir。
-/// 压缩包指纹（大小+mtime）变化时重新解压，保证应用升级后 sidecar 同步更新。
+/// 压缩包指纹变化时重新解压，保证应用升级后 sidecar 同步更新。
 fn ensure_extracted(app: &AppHandle) -> std::io::Result<PathBuf> {
     let exe = extracted_exe(app).ok_or_else(|| io_err("无 app_data_dir"))?;
     let archive = app
@@ -49,16 +76,7 @@ fn ensure_extracted(app: &AppHandle) -> std::io::Result<PathBuf> {
         return Err(io_err("sidecar 压缩包未找到（开发模式？）"));
     }
 
-    let meta = fs::metadata(&archive)?;
-    let fingerprint = format!(
-        "{}-{}",
-        meta.len(),
-        meta.modified()
-            .ok()
-            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-            .map(|d| d.as_secs())
-            .unwrap_or(0)
-    );
+    let fingerprint = archive_fingerprint(&archive)?;
     let dest = exe
         .parent()
         .and_then(|p| p.parent())
@@ -70,7 +88,8 @@ fn ensure_extracted(app: &AppHandle) -> std::io::Result<PathBuf> {
         return Ok(exe); // 已解压且与当前压缩包一致
     }
 
-    // 过期或首次：清掉旧产物重新解压
+    // 过期或首次：清掉旧产物重新解压。解压耗时约半分钟，把阶段报给前端 splash
+    set_boot_stage(app, "extracting");
     let unpacked = dest.join("videomind-sidecar");
     if unpacked.exists() {
         let _ = fs::remove_dir_all(&unpacked);
@@ -86,7 +105,17 @@ fn ensure_extracted(app: &AppHandle) -> std::io::Result<PathBuf> {
     let mut ar = tar::Archive::new(gz);
     ar.unpack(&dest)?;
     fs::write(&marker, fingerprint)?;
+    set_boot_stage(app, "starting");
     Ok(exe)
+}
+
+/// 把启动阶段写进全局状态，供前端 splash 轮询展示（extracting / starting / ready）
+fn set_boot_stage(app: &AppHandle, stage: &str) {
+    if let Some(state) = app.try_state::<crate::AppState>() {
+        if let Ok(mut s) = state.boot_stage.lock() {
+            *s = stage.to_string();
+        }
+    }
 }
 
 fn find_free_port() -> Option<u16> {

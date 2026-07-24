@@ -12,6 +12,7 @@ export const zh = {
   common: {
     loading: '加载中…',
     starting: '后端启动中',
+    extracting: '首次启动，正在解压组件（约半分钟，仅升级后需要）',
     save: '保存',
     cancel: '取消',
     delete: '删除',

@@ -18,6 +18,7 @@ import { ThemeProvider } from './theme'
 
 export default function App() {
   const [ready, setReady] = useState(false)
+  const [bootStage, setBootStage] = useState('starting')
   useEffect(() => {
     let cancelled = false
     let tries = 0
@@ -32,6 +33,10 @@ export default function App() {
             api.defaults.baseURL = base
             setReady(true)
           } else if (tries++ < 90) {
+            // 升级后首启需解压组件（约半分钟），把阶段同步到 splash 文案
+            invoke<string>('get_boot_stage')
+              .then((s) => !cancelled && setBootStage(s))
+              .catch(() => undefined)
             setTimeout(poll, 1000) // sidecar 启动中，1s 后重试（最多 90s）
           } else {
             setReady(true) // 超时降级
@@ -51,17 +56,21 @@ export default function App() {
   return (
     <ThemeProvider>
       <I18nProvider>
-        <AppShell ready={ready} />
+        <AppShell ready={ready} bootStage={bootStage} />
       </I18nProvider>
     </ThemeProvider>
   )
 }
 
-function AppShell({ ready }: { ready: boolean }) {
+function AppShell({ ready, bootStage }: { ready: boolean; bootStage: string }) {
   const { t } = useI18n()
 
   if (!ready) {
-    return <LoadingScreen label={t('common.starting')} />
+    return (
+      <LoadingScreen
+        label={bootStage === 'extracting' ? t('common.extracting') : t('common.starting')}
+      />
+    )
   }
 
   return (

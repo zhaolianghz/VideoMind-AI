@@ -4,9 +4,11 @@ mod sidecar;
 use std::sync::Mutex;
 use tauri::Manager;
 
-/// 应用全局状态：持有的 sidecar 子进程（生产模式）。
+/// 应用全局状态：持有的 sidecar 子进程（生产模式）+ 启动阶段（供 splash 展示）。
 pub struct AppState {
     pub sidecar: Mutex<Option<sidecar::Sidecar>>,
+    /// starting | extracting | ready；前端 splash 轮询用
+    pub boot_stage: Mutex<String>,
 }
 
 /// Tauri 主进程入口。
@@ -18,6 +20,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState {
             sidecar: Mutex::new(None),
+            boot_stage: Mutex::new("starting".into()),
         })
         .setup(|app| {
             let handle = app.handle().clone();
@@ -72,6 +75,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::get_api_base,
+            commands::get_boot_stage,
             commands::ensure_douyin_cookies
         ])
         .build(tauri::generate_context!())

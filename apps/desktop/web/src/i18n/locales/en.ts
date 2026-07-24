@@ -12,6 +12,7 @@ export const en = {
   common: {
     loading: 'Loading…',
     starting: 'Starting backend',
+    extracting: 'First run — unpacking components (~30s, only after updates)',
     save: 'Save',
     cancel: 'Cancel',
     delete: 'Delete',
