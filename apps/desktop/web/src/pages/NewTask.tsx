@@ -1,8 +1,12 @@
 import { useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { isAxiosError } from 'axios'
+import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 import { collectBatch, collectVideo } from '../api/videos'
 import { collectChannel } from '../api/creators'
+import { isDouyinLink } from '../api/platforms'
+import { isTauri } from '../utils/tauri'
 import { useI18n } from '../i18n'
 
 /** iOS 风格开关 + 文案 */
@@ -52,6 +56,7 @@ export function NewTask() {
   const [autoTranscribe, setAutoTranscribe] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [captureStage, setCaptureStage] = useState<'idle' | 'open' | 'importing'>('idle')
 
   const batchUrls = batchText.split('\n').map((s) => s.trim()).filter(Boolean)
 
@@ -85,10 +90,78 @@ export function NewTask() {
         setSubmitting(false)
         return
       }
+      // 抖音博主主页：yt-dlp 不支持，走应用内 webview 采集（仅桌面端）
+      if (isDouyinLink(channelUrl)) {
+        void submitDouyinCreator()
+        return
+      }
       collectChannel(channelUrl.trim(), channelLimit, download, autoTranscribe)
         .then(done)
         .catch(fail)
         .finally(fin)
+    }
+  }
+
+  // 抖音博主主页采集：Rust 开可见 webview 加载主页 → 注入脚本抓视频 URL →
+  // 经 douyin-capture-done 事件回传 → 批量入库（每条 /video/<id> yt-dlp 支持）
+  const submitDouyinCreator = async () => {
+    if (!isTauri()) {
+      setError(t('newTask.captureNeedDesktop'))
+      setSubmitting(false)
+      return
+    }
+    let unlistenDone: (() => void) | undefined
+    let unlistenCancel: (() => void) | undefined
+    const teardown = () => {
+      unlistenDone?.()
+      unlistenCancel?.()
+    }
+    unlistenDone = await listen<{ count: number; urls: string[] }>(
+      'douyin-capture-done',
+      async (ev) => {
+        teardown()
+        const urls = ev.payload.urls
+        if (!urls.length) {
+          setSubmitting(false)
+          setCaptureStage('idle')
+          setError(t('newTask.captureNone'))
+          return
+        }
+        setCaptureStage('importing')
+        try {
+          await collectBatch(urls, download, autoTranscribe)
+          navigate('/library')
+        } catch (e) {
+          setCaptureStage('idle')
+          setError(
+            isAxiosError(e) && typeof e.response?.data?.detail === 'string'
+              ? e.response.data.detail
+              : e instanceof Error
+                ? e.message
+                : String(e),
+          )
+        } finally {
+          setSubmitting(false)
+        }
+      },
+    )
+    unlistenCancel = await listen('douyin-capture-cancelled', () => {
+      teardown()
+      setSubmitting(false)
+      setCaptureStage('idle')
+      setError(t('newTask.captureCancelled'))
+    })
+    try {
+      await invoke('collect_douyin_creator', {
+        url: channelUrl.trim(),
+        limit: channelLimit,
+      })
+      setCaptureStage('open')
+    } catch (e) {
+      teardown()
+      setSubmitting(false)
+      setCaptureStage('idle')
+      setError(e instanceof Error ? e.message : String(e))
     }
   }
 
@@ -200,6 +273,14 @@ export function NewTask() {
           {submitLabel} →
         </button>
       </div>
+
+      {captureStage !== 'idle' && (
+        <div className="mt-5 w-full rounded-xl border border-accent/30 bg-accent/10 p-3 text-sm text-primary">
+          {captureStage === 'importing'
+            ? t('newTask.captureImporting')
+            : t('newTask.captureOpen')}
+        </div>
+      )}
 
       {error && (
         <div className="mt-5 w-full rounded-xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger">

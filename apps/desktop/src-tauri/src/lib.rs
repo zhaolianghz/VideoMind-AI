@@ -2,11 +2,14 @@ mod commands;
 mod sidecar;
 
 use std::sync::Mutex;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 /// 应用全局状态：持有的 sidecar 子进程（生产模式）。
 pub struct AppState {
     pub sidecar: Mutex<Option<sidecar::Sidecar>>,
+    /// 抖音采集窗“程序主动关闭”标志：on_navigation 收到 done 时置 true，
+    /// lib.rs 关窗事件据此区分“采集完成”与“用户手动取消”，避免误发 cancelled。
+    pub capture_done: std::sync::atomic::AtomicBool,
 }
 
 /// Tauri 主进程入口。
@@ -18,6 +21,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState {
             sidecar: Mutex::new(None),
+            capture_done: std::sync::atomic::AtomicBool::new(false),
         })
         .setup(|app| {
             let handle = app.handle().clone();
@@ -58,9 +62,24 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            // 仅主窗口关闭时终止 sidecar（隐藏的 cookie 收割窗口不算）
             if let tauri::WindowEvent::Destroyed = event {
-                if window.label() != "main" {
+                let label = window.label();
+                // 抖音博主采集窗被用户提前关闭 → 通知前端取消等待
+                if label == commands::CAPTURE_WINDOW_LABEL {
+                    // capture_done 已置位 = 程序主动关窗（采集完成），不发 cancelled；
+                    // 否则是用户手动关掉采集窗 → 通知前端取消等待
+                    let done = window
+                        .app_handle()
+                        .try_state::<AppState>()
+                        .map(|s| s.capture_done.swap(false, std::sync::atomic::Ordering::SeqCst))
+                        .unwrap_or(false);
+                    if !done {
+                        let _ = window.app_handle().emit("douyin-capture-cancelled", ());
+                    }
+                    return;
+                }
+                // 仅主窗口关闭时终止 sidecar（隐藏的 cookie 收割窗口不算）
+                if label != "main" {
                     return;
                 }
                 if let Some(state) = window.app_handle().try_state::<AppState>() {
@@ -72,7 +91,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::get_api_base,
-            commands::ensure_douyin_cookies
+            commands::ensure_douyin_cookies,
+            commands::collect_douyin_creator
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")

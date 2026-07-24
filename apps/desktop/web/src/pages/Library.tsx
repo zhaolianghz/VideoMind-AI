@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { deleteVideo, extractAudio, fetchComments, getComments, listVideos, recollectVideo, transcribeVideo } from '../api/videos'
 import type { VideoComment } from '../api/videos'
@@ -55,6 +55,23 @@ function fmtTs(sec: number): string {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
 }
 
+/** 相对时间标签：区分采集批次（刚刚 / N分钟前 / N小时前 / N天前 / MM-DD） */
+function fmtRelTime(iso: string): string {
+  if (!iso) return ''
+  // 后端存 UTC，但 SQLite 丢了时区标记、序列化出无 offset 的串；
+  // 前端必须按 UTC 解析，否则 UTC+8 会整体偏 8 小时
+  const norm = iso.endsWith('Z') || /[+-]\d\d:?\d\d$/.test(iso) ? iso : iso + 'Z'
+  const t = new Date(norm).getTime()
+  if (Number.isNaN(t)) return ''
+  const diff = Date.now() - t
+  const min = 60_000, hr = 60 * min, day = 24 * hr
+  if (diff < min) return '刚刚'
+  if (diff < hr) return Math.floor(diff / min) + '分钟前'
+  if (diff < day) return Math.floor(diff / hr) + '小时前'
+  if (diff < 7 * day) return Math.floor(diff / day) + '天前'
+  return new Date(norm).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
+
 export function Library() {
   const { t } = useI18n()
   const STAGE_LABELS: Record<string, string> = {
@@ -77,6 +94,7 @@ export function Library() {
 
   const [videos, setVideos] = useState<Video[]>([])
   const [creators, setCreators] = useState<Creator[]>([])
+  const [platform, setPlatform] = useState<string | null>(null)
   const [creatorId, setCreatorId] = useState<string | null>(null)
   const [category, setCategory] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -106,30 +124,50 @@ export function Library() {
   }, [analyzeParam, videos.length])
 
   const load = () =>
-    Promise.all([
-      listVideos(creatorId ?? undefined, category ?? undefined),
-      listCreators(),
-    ])
+    Promise.all([listVideos(), listCreators()])
       .then(([vs, cs]) => {
         setVideos(vs)
         setCreators(cs)
       })
       .finally(() => setLoading(false))
 
+  // 全量拉取 + 3s 轮询；平台/博主/分类/搜索全部前端过滤，免得改筛选就重请求
   useEffect(() => {
     load()
     const id = setInterval(load, 3000)
     return () => clearInterval(id)
-  }, [creatorId, category])
+  }, [])
 
   const refresh = () => setTimeout(load, 500)
 
+  // 选平台 = 切到该平台命名空间：清掉下层的博主/分类
+  const pickPlatform = (p: string | null) => {
+    setPlatform(p)
+    setCreatorId(null)
+    setCategory(null)
+  }
+
+  // 平台大标签：按视频数倒序，多平台时才显示
+  const platforms = useMemo(() => {
+    const m = new Map<string, number>()
+    videos.forEach((v) => m.set(v.platform, (m.get(v.platform) || 0) + 1))
+    return [...m.entries()].sort((a, b) => b[1] - a[1])
+  }, [videos])
+
+  // 当前平台下的博主（博主是平台维度的）
+  const creatorsShown = platform ? creators.filter((c) => c.platform === platform) : creators
+
   const kw = q.trim().toLowerCase()
-  const shown = kw
-    ? videos.filter((v) =>
-        [v.title, v.author, v.category, v.tags, v.url].join(' ').toLowerCase().includes(kw),
-      )
-    : videos
+  // scoped = 平台+博主 作用域（给分类下拉选项用）；shown 再叠加分类+搜索
+  const scoped = videos.filter(
+    (v) => (!platform || v.platform === platform) && (!creatorId || v.creator_id === creatorId),
+  )
+  const shown = scoped.filter(
+    (v) =>
+      (!category || v.category === category) &&
+      (!kw ||
+        [v.title, v.author, v.category, v.tags, v.url].join(' ').toLowerCase().includes(kw)),
+  )
 
   return (
     <div className="max-w-5xl">
@@ -168,9 +206,39 @@ export function Library() {
         </Link>
       </div>
 
-      {(creators.length > 1 || videos.some((v) => v.category) || category) && (
+      {/* 平台大标签（最上层）：多平台时显示 */}
+      {platforms.length > 1 && (
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <div className="inline-flex rounded-xl bg-fill p-1">
+            <button
+              onClick={() => pickPlatform(null)}
+              className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-all ${
+                platform === null ? 'bg-surface text-primary shadow-sm' : 'text-secondary hover:text-primary'
+              }`}
+            >
+              {t('library.all')}
+              <span className="ml-1.5 text-xs opacity-50">{videos.length}</span>
+            </button>
+            {platforms.map(([p, n]) => (
+              <button
+                key={p}
+                onClick={() => pickPlatform(p)}
+                className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-all ${
+                  platform === p ? 'bg-surface text-primary shadow-sm' : 'text-secondary hover:text-primary'
+                }`}
+              >
+                {platformLabel(p)}
+                <span className="ml-1.5 text-xs opacity-50">{n}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 博主 / 分类（平台下一层） */}
+      {(creatorsShown.length > 1 || scoped.some((v) => v.category) || category) && (
         <div className="mb-4 flex flex-wrap items-center gap-2">
-          {creators.length > 1 && (
+          {creatorsShown.length > 1 && (
             <>
               <button
                 onClick={() => setCreatorId(null)}
@@ -180,7 +248,7 @@ export function Library() {
               >
                 {t('library.all')}
               </button>
-              {creators.map((c) => (
+              {creatorsShown.map((c) => (
                 <button
                   key={c.id}
                   onClick={() => setCreatorId(creatorId === c.id ? null : c.id)}
@@ -194,7 +262,7 @@ export function Library() {
               ))}
             </>
           )}
-          {(videos.some((v) => v.category) || category) && (
+          {(scoped.some((v) => v.category) || category) && (
             <select
               value={category ?? ''}
               onChange={(e) => setCategory(e.target.value || null)}
@@ -203,7 +271,7 @@ export function Library() {
               <option value="">{t('library.allCategories')}</option>
               {Array.from(
                 new Set([
-                  ...videos.map((v) => v.category).filter(Boolean),
+                  ...scoped.map((v) => v.category).filter(Boolean),
                   ...(category ? [category] : []),
                 ]),
               ).map((c) => (
@@ -215,7 +283,10 @@ export function Library() {
       )}
 
       {creatorId && (
-        <CreatorProfilePanel creator={creators.find((c) => c.id === creatorId)} videos={videos} />
+        <CreatorProfilePanel
+          creator={creators.find((c) => c.id === creatorId)}
+          videos={videos.filter((v) => v.creator_id === creatorId)}
+        />
       )}
       {loading ? (
         <div className="text-secondary">{t('library.loading')}</div>
@@ -263,6 +334,9 @@ export function Library() {
                         {busy
                           ? `${STAGE_LABELS[v.status] ?? v.status}…`
                           : STATUS_LABELS[v.status] ?? v.status}
+                      </span>
+                      <span className="shrink-0 font-mono text-[11px] text-tertiary" title={v.created_at}>
+                        {fmtRelTime(v.created_at)}
                       </span>
                     </div>
                     <div className="mt-1 truncate text-sm text-secondary">

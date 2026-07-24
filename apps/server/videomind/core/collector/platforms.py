@@ -111,6 +111,21 @@ def canonicalize_url(url: str) -> str:
     return url
 
 
+def is_douyin_user_url(url: str) -> bool:
+    """是否是抖音博主主页链接。
+
+    yt-dlp 的抖音提取器只认 `/video/<id>`，不实现用户页；且旧版
+    `web/api/v2/aweme/post` 接口已失效（200/0 字节）。博主主页需走 webview
+    方案，调用方应据此给出明确提示，而非让 yt-dlp 报误导性的 "Unsupported URL"。
+    匹配 canonicalize 后的 `/user/<sec_uid>`，也兼容未归一的 `/share/user/`。
+    """
+    parsed = urlparse(url)
+    host = (parsed.hostname or "").lower()
+    if "douyin.com" not in host and "iesdouyin.com" not in host:
+        return False
+    return bool(re.search(r"/(?:share/)?user/[\w.-]+", parsed.path))
+
+
 def platform_opts(platform: str) -> dict:
     """各平台 yt-dlp 附加选项（反爬伪装）。"""
     if platform in ("douyin", "kuaishou"):

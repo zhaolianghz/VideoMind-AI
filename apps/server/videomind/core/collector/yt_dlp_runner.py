@@ -11,9 +11,22 @@ from .cookies import resolve_cookiefile
 from .platforms import (
     canonicalize_url,
     detect_platform,
+    is_douyin_user_url,
     platform_opts,
     resolve_short_url,
 )
+
+
+class UnsupportedChannelURL(Exception):
+    """博主主页/频道 URL 当前不支持（如抖音主页：yt-dlp 未实现，需 webview）。"""
+
+
+def _douyin_user_hint() -> str:
+    return (
+        "抖音博主主页暂不支持批量采集：yt-dlp 未实现抖音用户页，"
+        "旧版 web/api/v2/aweme/post 接口也已失效。"
+        "请改粘单条视频链接（https://www.douyin.com/video/<id>）或 App 分享口令。"
+    )
 
 
 @lru_cache(maxsize=1)
@@ -75,6 +88,8 @@ def _base_opts(outdir: Path, cookiefile: Path | None) -> dict:
 def fetch_metadata(url: str, outdir: Path) -> dict:
     """仅抓元数据，不下载。"""
     url = canonicalize_url(resolve_short_url(url))
+    if is_douyin_user_url(url):
+        raise UnsupportedChannelURL(_douyin_user_hint())
     platform = detect_platform(url)
     opts = _base_opts(outdir, resolve_cookiefile(platform))
     opts.update(platform_opts(platform))
@@ -91,6 +106,8 @@ def fetch_channel_videos(channel_url: str, limit: int = 20) -> list[dict]:
     详细元数据由后续逐条 run_collect 补齐。
     """
     channel_url = canonicalize_url(resolve_short_url(channel_url))
+    if is_douyin_user_url(channel_url):
+        raise UnsupportedChannelURL(_douyin_user_hint())
     platform = detect_platform(channel_url)
     opts: dict = {
         "quiet": True,
@@ -182,6 +199,8 @@ def download_audio(
     on_progress: 收到 0-100 的下载进度百分比（yt-dlp progress hook）。
     """
     url = canonicalize_url(resolve_short_url(url))
+    if is_douyin_user_url(url):
+        raise UnsupportedChannelURL(_douyin_user_hint())
     platform = detect_platform(url)
     opts = _base_opts(outdir, resolve_cookiefile(platform))
     opts.update(platform_opts(platform))
@@ -243,6 +262,8 @@ def download_cover(cover_url: str, outdir: Path, name: str) -> str:
 
 def friendly_error(e: Exception) -> str:
     """把 yt-dlp 采集错误转成带解决指引的中文提示。"""
+    if isinstance(e, UnsupportedChannelURL):
+        return str(e)
     msg = str(e)
     low = msg.lower()
     if any(
