@@ -46,3 +46,7 @@ apps/desktop/src-tauri/bin/videomind-sidecar/
 
 # CodeGraph
 .codegraph/
+
+# PyInstaller 本地构建临时目录
+.pybuild
+.pyspec

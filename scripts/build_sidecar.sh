@@ -29,13 +29,13 @@ PYINSTALLER="${PYINSTALLER:-pyinstaller}"
   --hidden-import openai --hidden-import anthropic \
   --exclude-module pytest \
   --distpath "$BIN_ROOT" \
-  --workpath /tmp/vm-py-build --specpath /tmp/vm-py-spec \
+  --workpath "$ROOT/.pybuild" --specpath "$ROOT/.pyspec" \
   --clean --noconfirm \
   run_sidecar.py
 
 # 压缩为 tar.gz（Tauri 打包目录 resource 会报错，改用压缩包 + 运行时 Rust 解压）
 tar -czf "$BIN_ROOT/$PKG.tar.gz" -C "$BIN_ROOT" "$PKG"
-rm -rf "$BIN_ROOT/$PKG"
+rm -rf "$BIN_ROOT/$PKG" "$ROOT/.pybuild" "$ROOT/.pyspec"
 
 echo "✓ 全功能 sidecar 压缩包:"
 ls -lh "$BIN_ROOT/$PKG.tar.gz"
