@@ -399,10 +399,11 @@ export function Settings() {
         <h2 className="text-sm font-medium text-primary">{t('settings.aboutTitle')}</h2>
         <div className="vm-card flex flex-wrap items-center justify-between gap-4 p-4 text-sm">
           <div className="min-w-0">
-            <div className="text-primary">
-              VideoMind AI <span className="vm-url">v{version}</span>
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-primary">VideoMind AI</span>
+              <span className="vm-url shrink-0">v{version}</span>
             </div>
-            <div className="mt-0.5 text-xs text-secondary">{t('settings.aboutHint')}</div>
+            <div className="mt-1 text-xs text-secondary">{t('settings.aboutHint')}</div>
           </div>
           <div className="flex shrink-0 items-center gap-4">
             <a
