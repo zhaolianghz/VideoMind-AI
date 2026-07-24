@@ -43,8 +43,7 @@ function statusStyle(s: string): string {
   return 'bg-fill text-secondary'
 }
 
-function fmtDur(sec: number): string {
-  if (!sec) return '--'
+function fmtDur(sec: number): string {  if (!sec) return '--'
   const m = Math.floor(sec / 60)
   const s = Math.floor(sec % 60)
   return `${m}:${s.toString().padStart(2, '0')}`
@@ -63,6 +62,19 @@ export function Library() {
     extracting: t('library.stageExtracting'),
     transcribing: t('library.stageTranscribing'),
   }
+  /** 稳态状态的本地化文案（进行中状态走 STAGE_LABELS） */
+  const STATUS_LABELS: Record<string, string> = {
+    collected: t('library.stCollected'),
+    ready: t('library.stReady'),
+    transcribed: t('library.stTranscribed'),
+    failed: t('library.stFailed'),
+  }
+  /** 平台展示名（douyin → 抖音）；无对应文案时回退原始值 */
+  const platformLabel = (p: string): string => {
+    const l = t('platformLabels.' + p)
+    return l === 'platformLabels.' + p ? p : l
+  }
+
   const [videos, setVideos] = useState<Video[]>([])
   const [creators, setCreators] = useState<Creator[]>([])
   const [creatorId, setCreatorId] = useState<string | null>(null)
@@ -237,7 +249,7 @@ export function Library() {
                     <div className="flex items-center gap-2">
                       <span className="truncate font-medium">{v.title || t('library.noTitle')}</span>
                       <span className="shrink-0 rounded-full bg-fill px-1.5 py-0.5 text-xs text-secondary">
-                        {v.platform}
+                        {platformLabel(v.platform)}
                       </span>
                       {v.category && (
                         <button
@@ -248,7 +260,9 @@ export function Library() {
                         </button>
                       )}
                       <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${statusStyle(v.status)}`}>
-                        {busy ? `${STAGE_LABELS[v.status] ?? v.status}…` : v.status}
+                        {busy
+                          ? `${STAGE_LABELS[v.status] ?? v.status}…`
+                          : STATUS_LABELS[v.status] ?? v.status}
                       </span>
                     </div>
                     <div className="mt-1 truncate text-sm text-secondary">

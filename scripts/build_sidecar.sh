@@ -25,6 +25,7 @@ PYINSTALLER="${PYINSTALLER:-pyinstaller}"
   --collect-all ctranslate2 \
   --collect-all weasyprint \
   --collect-all markdown \
+  --collect-all zhconv \
   --hidden-import openai --hidden-import anthropic \
   --exclude-module pytest \
   --distpath "$BIN_ROOT" \

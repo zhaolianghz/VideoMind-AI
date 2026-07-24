@@ -241,6 +241,7 @@ export const en = {
     commentsTitle: 'Top comments ({n}, by likes)', refetch: 'Re-fetch', anonymous: 'anonymous',
     analysisSubmitted: '✓ Analysis submitted, running in background', openReport: 'Open report →',
     noProvider: 'No model provider available.', goConfig: 'Configure →',
+    stCollected: 'Collected', stReady: 'Ready', stTranscribed: 'Transcribed', stFailed: 'Failed',
     autoTranscribeHint: 'Audio extraction → transcription started automatically; analysis unlocks when it finishes.',
     transcribingHint: 'Transcribing — “Start analysis” unlocks when done…',
     template: 'Template', modelPlaceholder: 'Model ID (default if empty)', customModel: 'Custom model…',

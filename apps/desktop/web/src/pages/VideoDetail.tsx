@@ -62,7 +62,10 @@ export function VideoDetail() {
         <h1 className="truncate text-lg font-bold">{video?.title || t('videoDetail.loading')}</h1>
         {video && (
           <span className="rounded-full bg-fill px-2 py-0.5 text-xs text-secondary">
-            {video.platform}
+            {(() => {
+              const l = t('platformLabels.' + video.platform)
+              return l === 'platformLabels.' + video.platform ? video.platform : l
+            })()}
           </span>
         )}
       </div>

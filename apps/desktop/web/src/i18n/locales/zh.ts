@@ -241,6 +241,7 @@ export const zh = {
     commentsTitle: '热门评论（{n} 条，按点赞排序）', refetch: '重新抓取', anonymous: '匿名',
     analysisSubmitted: '✓ 分析已提交，后台运行中', openReport: '打开报告页查看进度 →',
     noProvider: '还没有可用的模型服务商。', goConfig: '去配置 →',
+    stCollected: '已采集', stReady: '就绪', stTranscribed: '已转录', stFailed: '失败',
     autoTranscribeHint: '已自动发起「提取音频 → 转录」，完成后即可开始分析。',
     transcribingHint: '转录进行中，完成后「开始分析」自动解锁…',
     template: '模板', modelPlaceholder: '模型 ID（留空用服务商默认）', customModel: '手动输入模型…',
