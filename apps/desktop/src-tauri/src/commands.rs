@@ -11,6 +11,11 @@ use crate::AppState;
 /// 返回 sidecar 的 API base。None 表示开发模式（前端走 vite proxy 的 /api/v1）。
 #[tauri::command]
 pub fn get_api_base(state: tauri::State<'_, AppState>) -> Option<String> {
+    // dev 模式不启 sidecar（后端跑 make server → vite proxy /api/v1）。
+    // 直接返回代理地址，避免前端误判 sidecar 未就绪、空轮询 90s 才超时进工作台。
+    if tauri::is_dev() {
+        return Some("/api/v1".to_string());
+    }
     state
         .sidecar
         .lock()
