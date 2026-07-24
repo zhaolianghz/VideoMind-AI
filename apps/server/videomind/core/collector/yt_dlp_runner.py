@@ -5,8 +5,6 @@ from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 
-import yt_dlp
-
 from .cookies import resolve_cookiefile
 from .platforms import (
     canonicalize_url,
@@ -14,6 +12,14 @@ from .platforms import (
     platform_opts,
     resolve_short_url,
 )
+
+
+@lru_cache(maxsize=1)
+def _ydl():
+    """延迟加载 yt_dlp（import 约 120ms），把它移出 sidecar 启动关键路径。"""
+    import yt_dlp
+
+    return yt_dlp
 
 
 @lru_cache(maxsize=1)
@@ -79,7 +85,7 @@ def fetch_metadata(url: str, outdir: Path) -> dict:
     opts = _base_opts(outdir, resolve_cookiefile(platform))
     opts.update(platform_opts(platform))
     opts["skip_download"] = True
-    with yt_dlp.YoutubeDL(opts) as ydl:
+    with _ydl().YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=False)
     return _normalize(info, platform)
 
@@ -105,7 +111,7 @@ def fetch_channel_videos(channel_url: str, limit: int = 20) -> list[dict]:
     if cookiefile:
         opts["cookiefile"] = str(cookiefile)
     opts.update(platform_opts(platform))
-    with yt_dlp.YoutubeDL(opts) as ydl:
+    with _ydl().YoutubeDL(opts) as ydl:
         info = ydl.extract_info(channel_url, download=False)
 
     entries = info.get("entries") or []
@@ -155,7 +161,7 @@ def fetch_comments(url: str, limit: int = 100) -> list[dict]:
     if cookiefile:
         opts["cookiefile"] = str(cookiefile)
     opts.update(platform_opts(platform))
-    with yt_dlp.YoutubeDL(opts) as ydl:
+    with _ydl().YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=False)
     out: list[dict] = []
     for c in (info.get("comments") or [])[: limit * 2]:
@@ -197,7 +203,7 @@ def download_audio(
                 on_progress(100)
 
         opts["progress_hooks"] = [hook]
-    with yt_dlp.YoutubeDL(opts) as ydl:
+    with _ydl().YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=True)
         filename = ydl.prepare_filename(info)
     return _normalize(info, platform), filename

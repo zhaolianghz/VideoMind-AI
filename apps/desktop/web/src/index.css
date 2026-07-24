@@ -416,8 +416,97 @@ h1, .text-2xl, .text-3xl { letter-spacing: -0.02em; }
   30%           { opacity: 1;   transform: translateY(-3px); }
 }
 
+/* --- 平台 logo 轨道：offset-path 公转（offset-rotate:0 自动保持正立） --- */
+.vm-splash-stage {
+  position: relative;
+  width: 380px;
+  height: 380px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 轨道虚线 + 扫描光弧（SVG 内联绘制，这里只做旋转） */
+.vm-orbit-scan {
+  position: absolute;
+  inset: 0;
+  animation: vm-orbit-spin 4s linear infinite;
+}
+@keyframes vm-orbit-spin {
+  to { transform: rotate(360deg); }
+}
+
+.vm-orbit-item {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  offset-path: circle(150px);
+  offset-rotate: 0deg;
+  animation: vm-orbit-run 26s linear infinite;
+}
+@keyframes vm-orbit-run {
+  from { offset-distance: 0%; }
+  to   { offset-distance: 100%; }
+}
+
+/* 不支持 offset-path 的旧环境：隐藏徽章与光弧，只留猫头鹰（避免堆叠在中心） */
+@supports not (offset-path: circle(1px)) {
+  .vm-orbit-item,
+  .vm-orbit-scan {
+    display: none;
+  }
+}
+
+/* 平台徽章：毛玻璃小方块，依次点亮呼吸 */
+.vm-orbit-chip {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 85%, transparent);
+  box-shadow: var(--shadow-card);
+  animation: vm-chip-pulse 3.6s ease-in-out infinite;
+}
+@keyframes vm-chip-pulse {
+  0%, 55%, 100% { transform: scale(1); filter: none; }
+  12% {
+    transform: scale(1.18);
+    filter: drop-shadow(0 0 10px color-mix(in srgb, var(--accent) 55%, transparent));
+  }
+}
+
+/* 状态区：不确定进度的流光条 */
+.vm-splash-bar {
+  width: 190px;
+  height: 3px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--fill);
+}
+.vm-splash-bar > span {
+  display: block;
+  height: 100%;
+  width: 40%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, var(--accent), var(--viz-2), transparent);
+  animation: vm-splash-sweep 1.5s ease-in-out infinite;
+}
+@keyframes vm-splash-sweep {
+  from { transform: translateX(-120%); }
+  to   { transform: translateX(400%); }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .owl-float, .owl-eye, .owl-glow, .owl-dots span { animation: none; }
+  .owl-float, .owl-eye, .owl-glow, .owl-dots span,
+  .vm-orbit-scan, .vm-orbit-item, .vm-orbit-chip, .vm-splash-bar > span {
+    animation: none;
+  }
 }
 
 /* === 无障碍：减少透明 / 增强对比 === */
