@@ -74,6 +74,17 @@ pub fn run() {
             commands::get_api_base,
             commands::ensure_douyin_cookies
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application")
+        .run(|handle, event| {
+            // 兜底清理：Cmd+Q / 系统退出不会触发窗口 Destroyed 或 Drop，
+            // 必须在 Exit 事件里显式杀 sidecar，否则子进程泄漏成僵尸
+            if let tauri::RunEvent::Exit = event {
+                if let Some(state) = handle.try_state::<AppState>() {
+                    if let Some(mut s) = state.sidecar.lock().unwrap().take() {
+                        s.kill();
+                    }
+                }
+            }
+        });
 }

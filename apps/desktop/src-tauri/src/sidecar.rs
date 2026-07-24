@@ -107,6 +107,9 @@ impl Sidecar {
             .arg(port.to_string())
             .arg("--data-dir")
             .arg(data_dir)
+            // sidecar 侧的父进程看门狗：宿主被强杀/崩溃时自行退出，防僵尸进程
+            .arg("--parent-pid")
+            .arg(std::process::id().to_string())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()?;
