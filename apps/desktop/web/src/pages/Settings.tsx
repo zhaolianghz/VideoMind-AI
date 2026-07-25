@@ -10,6 +10,7 @@ import {
 } from '../api/cookies'
 import { getPaths, PathsInfo } from '../api/system'
 import { getPreferences, putPreferences, Preferences } from '../api/preferences'
+import { activateLicense, getLicenseStatus, LicenseStatus } from '../api/license'
 import { useI18n } from '../i18n'
 import { ThemeSwitcher } from '../components/ThemeSwitcher'
 import { isTauri, pickDirectory } from '../utils/tauri'
@@ -174,6 +175,84 @@ function CookieRow({
   )
 }
 
+function LicenseSection() {
+  const { t } = useI18n()
+  const [st, setSt] = useState<LicenseStatus | null>(null)
+  const [code, setCode] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+
+  useEffect(() => {
+    getLicenseStatus().then(setSt)
+  }, [])
+
+  if (!st?.available) return null // CE 版：整段隐藏
+
+  const statusText = st.licensed
+    ? t('license.licensed').replace('{tier}', st.tier).replace('{exp}', st.expires_at ?? '')
+    : st.trial_active
+      ? t('license.trial').replace('{n}', String(st.trial_days_left))
+      : t('license.expired')
+
+  const doActivate = async () => {
+    setBusy(true)
+    setMsg(null)
+    try {
+      setSt(await activateLicense(code.trim()))
+      setCode('')
+      setMsg({ ok: true, text: t('license.activated') })
+    } catch (e) {
+      setMsg({ ok: false, text: errText(e) })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section className="space-y-3">
+      <div>
+        <h2 className="text-sm font-medium text-primary">{t('license.title')}</h2>
+        <p className="mt-1 text-xs text-secondary">{statusText}</p>
+      </div>
+      <div className="vm-card space-y-3 p-4 text-sm">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-secondary">{t('license.machineCode')}</span>
+          <code className="rounded bg-accent/10 px-2 py-0.5 font-mono text-xs text-accent">
+            {st.machine_code}
+          </code>
+          <button
+            className="vm-btn-neon text-xs"
+            onClick={() => navigator.clipboard.writeText(st.machine_code)}
+          >
+            {t('license.copy')}
+          </button>
+        </div>
+        {!st.licensed && (
+          <div className="flex gap-2">
+            <input
+              className="vm-input flex-1 font-mono text-xs"
+              placeholder={t('license.codePlaceholder')}
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+            />
+            <button
+              className="vm-btn-primary text-xs disabled:opacity-40"
+              disabled={busy || !code.trim()}
+              onClick={doActivate}
+            >
+              {t('license.activate')}
+            </button>
+          </div>
+        )}
+        {msg && (
+          <div className={`text-xs ${msg.ok ? 'text-accent' : 'text-danger'}`}>{msg.text}</div>
+        )}
+        {!st.licensed && <p className="text-xs text-secondary">{t('license.buyHint')}</p>}
+      </div>
+    </section>
+  )
+}
+
 export function Settings() {
   const { t } = useI18n()
   const [paths, setPaths] = useState<PathsInfo | null>(null)
@@ -253,6 +332,8 @@ export function Settings() {
           {err}
         </div>
       )}
+
+      <LicenseSection />
 
       <section className="space-y-3">
         <div>

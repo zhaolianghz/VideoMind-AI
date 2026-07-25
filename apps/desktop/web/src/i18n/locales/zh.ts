@@ -1,6 +1,18 @@
 export const zh = {
   brand: 'VideoMind AI',
   tagline: '视频智研助手',
+  license: {
+    title: '专业版授权',
+    machineCode: '机器码',
+    copy: '复制',
+    licensed: '已激活（{tier} 版，{exp} 到期）',
+    trial: '试用中，剩余 {n} 天',
+    expired: '未激活（试用已结束，专业版功能已锁定）',
+    codePlaceholder: '粘贴激活码',
+    activate: '激活',
+    activated: '激活成功',
+    buyHint: '购买专业版请联系作者获取激活码（提供上方机器码）',
+  },
   nav: {
     dashboard: '工作台',
     newTask: '新建分析',

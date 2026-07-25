@@ -1,6 +1,18 @@
 export const en = {
   brand: 'VideoMind AI',
   tagline: 'Video Intelligence',
+  license: {
+    title: 'Pro License',
+    machineCode: 'Machine code',
+    copy: 'Copy',
+    licensed: 'Activated ({tier}, expires {exp})',
+    trial: 'Trial: {n} days left',
+    expired: 'Not activated (trial ended, Pro features locked)',
+    codePlaceholder: 'Paste activation code',
+    activate: 'Activate',
+    activated: 'Activated',
+    buyHint: 'Contact the author with your machine code to purchase a license',
+  },
   nav: {
     dashboard: 'Dashboard',
     newTask: 'New Task',
