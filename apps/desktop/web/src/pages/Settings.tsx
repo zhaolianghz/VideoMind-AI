@@ -14,7 +14,7 @@ import { useI18n } from '../i18n'
 import { ThemeSwitcher } from '../components/ThemeSwitcher'
 import { isTauri, pickDirectory } from '../utils/tauri'
 
-const APP_VERSION = '0.1.0'
+const APP_VERSION = '1.0.1'
 const APP_REPO = 'https://github.com/zhaolianghz/VideoMind-AI'
 const APP_RELEASES = `${APP_REPO}/releases`
 
