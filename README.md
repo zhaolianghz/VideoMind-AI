@@ -5,15 +5,21 @@
 **AI Video Intelligence OS — Turn any video into structured insight.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![CI](https://github.com/lxw15337674/VideoMind-AI/actions/workflows/ci.yml/badge.svg)](.github/workflows/ci.yml)
+[![CI](https://github.com/zhaolianghz/VideoMind-AI/actions/workflows/ci.yml/badge.svg)](.github/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org)
 [![Tauri](https://img.shields.io/badge/Tauri-2-orange.svg)](https://tauri.app)
 
 An open-source desktop agent that **collects** videos from major platforms, **transcribes** them locally, runs **deep AI analysis**, and produces **structured reports** — your AI video researcher.
 
-[Features](#-features) · [Quick Start](#-quick-start) · [Build App](#-build-the-desktop-app) · [Roadmap](#-roadmap) · [Docs](#-docs)
+[Features](#-features) · [Quick Start](#-quick-start) · [Build App](#-build-the-desktop-app) · [Roadmap](#-roadmap) · [Docs](#-docs) · [中文](README_zh.md)
 
 </div>
+
+<p align="center">
+  <img src="docs/screenshots/01-dashboard.png" width="30%" alt="Dashboard">
+  <img src="docs/screenshots/02-library.png" width="30%" alt="Library">
+  <img src="docs/screenshots/03-newtask.png" width="30%" alt="New Task">
+</p>
 
 ---
 

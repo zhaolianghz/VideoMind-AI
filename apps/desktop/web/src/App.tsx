@@ -63,14 +63,8 @@ export default function App() {
 }
 
 function AppShell({ ready, bootStage }: { ready: boolean; bootStage: string }) {
-  const { t } = useI18n()
-
   if (!ready) {
-    return (
-      <LoadingScreen
-        label={bootStage === 'extracting' ? t('common.extracting') : t('common.starting')}
-      />
-    )
+    return <LoadingScreen extracting={bootStage === 'extracting'} />
   }
 
   return (
@@ -171,10 +165,24 @@ const PLATFORM_GLYPHS: Array<{ key: string; node: React.ReactNode }> = [
 const ORBIT_PERIOD = 26 // 公转一圈秒数，与 CSS vm-orbit-run 保持一致
 
 /**
- * 启动等待屏：中心霓虹猫头鹰（洞察 = VideoMind 的隐喻），
- * 外圈各视频平台 logo 沿轨道公转、依次点亮，配扫描光弧与流光进度条。
+ * 启动等待屏：中心霓虹猫头鹰（洞察 = VideoMind 的隐喻），外圈各视频平台
+ * 彩色 logo 沿轨道公转、依次点亮，配扫描光弧、流光进度条与步骤轮播文案。
  */
-function LoadingScreen({ label }: { label: string }) {
+function LoadingScreen({ extracting }: { extracting?: boolean }) {
+  const { t } = useI18n()
+  const steps = [
+    t('common.bootStep1'),
+    t('common.bootStep2'),
+    t('common.bootStep3'),
+    t('common.bootStep4'),
+  ]
+  const [step, setStep] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => setStep((x) => (x + 1) % 4), 2200)
+    return () => clearInterval(id)
+  }, [])
+  const caption = extracting ? t('common.extracting') : steps[step]
+
   return (
     <div
       className="vm-bg flex h-screen flex-col items-center justify-center gap-7"
@@ -220,38 +228,24 @@ function LoadingScreen({ label }: { label: string }) {
 
         {/* 中心猫头鹰 */}
         <svg
-          width="132"
-          height="132"
-          viewBox="0 0 120 120"
-          fill="none"
-          role="img"
-          aria-label={label}
-          className="relative"
+          width="132" height="132" viewBox="0 0 120 120" fill="none"
+          role="img" aria-label={caption} className="relative"
         >
-          {/* 身后呼吸光晕 */}
           <circle className="owl-glow" cx="60" cy="60" r="42" fill="url(#owlGlow)" />
           <g className="owl-float">
-            {/* 耳羽 */}
             <path d="M34 40 L40 22 L52 34 Z" fill="currentColor" fillOpacity="0.25" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
             <path d="M86 40 L80 22 L68 34 Z" fill="currentColor" fillOpacity="0.25" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-            {/* 身体 */}
             <ellipse cx="60" cy="62" rx="30" ry="34" fill="currentColor" fillOpacity="0.12" stroke="currentColor" strokeWidth="2" />
-            {/* 腹部纹理 */}
             <path d="M60 44 Q72 60 60 92 Q48 60 60 44 Z" fill="currentColor" opacity="0.18" />
-            {/* 眼眶 */}
             <circle cx="48" cy="54" r="14" fill="var(--surface)" stroke="currentColor" strokeWidth="1.5" />
             <circle cx="72" cy="54" r="14" fill="var(--surface)" stroke="currentColor" strokeWidth="1.5" />
-            {/* 眼睛（会眨） */}
             <g>
               <circle className="owl-eye left" cx="48" cy="54" r="7" fill="currentColor" />
               <circle className="owl-eye right" cx="72" cy="54" r="7" fill="currentColor" />
-              {/* 高光（不眨，保持灵动） */}
               <circle cx="50.5" cy="51.5" r="2" fill="var(--surface)" />
               <circle cx="74.5" cy="51.5" r="2" fill="var(--surface)" />
             </g>
-            {/* 喙 */}
             <path d="M60 60 L55 68 L65 68 Z" fill="var(--warning)" stroke="var(--warning)" strokeWidth="1" strokeLinejoin="round" />
-            {/* 爪 */}
             <path d="M52 96 l-3 6 M56 97 l0 7 M60 97 l0 7 M64 97 l0 7 M68 96 l3 6" stroke="var(--warning)" strokeWidth="2" strokeLinecap="round" />
           </g>
           <defs>
@@ -264,8 +258,9 @@ function LoadingScreen({ label }: { label: string }) {
       </div>
 
       <div className="flex flex-col items-center gap-3">
+        <div className="text-lg font-semibold tracking-wide text-primary">VideoMind AI</div>
         <div className="flex items-center gap-1 text-sm text-secondary">
-          <span>{label}</span>
+          <span>{caption}</span>
           <span className="owl-dots">
             <span>.</span>
             <span>.</span>

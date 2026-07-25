@@ -2,9 +2,11 @@
 
 复用 yt-dlp 的浏览器 Cookie 解密能力（Chrome/Edge/Firefox/Safari…），
 按平台域名过滤后落盘为标准 Netscape cookiefile，后续采集链路不变。
-yt_dlp 延迟加载（import 约 120ms），不进 sidecar 启动关键路径。
 """
 from pathlib import Path
+
+# yt_dlp.cookies 延迟到函数内 import（见 supported_browsers / import_from_browser），
+# 避免 sidecar 启动时把 yt_dlp（~114ms + pydantic 链）拉进 import 路径。
 
 # 前端展示顺序（常用优先）；safari 需要完全磁盘访问权限，放最后
 BROWSER_LABELS: dict[str, str] = {
@@ -32,7 +34,7 @@ PLATFORM_DOMAINS: dict[str, tuple[str, ...]] = {
 
 
 def supported_browsers() -> list[dict]:
-    from yt_dlp.cookies import SUPPORTED_BROWSERS
+    from yt_dlp.cookies import SUPPORTED_BROWSERS  # 延迟导入
 
     return [
         {"name": name, "label": label}
@@ -52,7 +54,7 @@ def import_from_browser(browser: str, platform: str, dest: Path) -> int:
     可能抛出：浏览器数据不存在 / 系统拒绝解密（钥匙串、完全磁盘访问）等，
     由 API 层统一转成用户可读的提示。
     """
-    from yt_dlp.cookies import YoutubeDLCookieJar, extract_cookies_from_browser
+    from yt_dlp.cookies import YoutubeDLCookieJar, extract_cookies_from_browser  # 延迟导入
 
     domains = PLATFORM_DOMAINS[platform]
     jar = extract_cookies_from_browser(browser)

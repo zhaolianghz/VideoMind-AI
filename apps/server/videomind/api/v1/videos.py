@@ -32,7 +32,7 @@ def list_videos(
     category: str | None = None,
     session: Session = Depends(get_session),
 ) -> list[Video]:
-    stmt = select(Video)
+    stmt = select(Video).order_by(Video.created_at.desc())
     if creator_id:
         stmt = stmt.where(Video.creator_id == creator_id)
     if category:

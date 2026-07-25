@@ -64,6 +64,8 @@ def collect_channel(
     try:
         # 支持整段粘贴主页分享口令，先抽出其中的 URL
         entries = yt_dlp_runner.fetch_channel_videos(extract_share_url(req.url), req.limit)
+    except yt_dlp_runner.UnsupportedChannelURL as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(
             status_code=422,

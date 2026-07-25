@@ -4,22 +4,46 @@ from collections.abc import Callable
 from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from .cookies import resolve_cookiefile
 from .platforms import (
     canonicalize_url,
     detect_platform,
+    is_douyin_user_url,
     platform_opts,
     resolve_short_url,
 )
 
 
-@lru_cache(maxsize=1)
-def _ydl():
-    """延迟加载 yt_dlp（import 约 120ms），把它移出 sidecar 启动关键路径。"""
+if TYPE_CHECKING:
+    # 仅供类型检查器解析 yt_dlp 名字；运行时由下面 __getattr__ 延迟导入
     import yt_dlp
 
-    return yt_dlp
+
+def __getattr__(name):
+    """延迟导入 yt_dlp（~114ms + pydantic 链），移出 sidecar 启动 import 路径。
+
+    yt_dlp 仅在真正采集时才用，没必要在 FastAPI 启动时加载。模块级 __getattr__
+    让 4 处 `yt_dlp.YoutubeDL(...)` 调用点零改动，首次访问时才 import 并缓存到全局。
+    """
+    if name == "yt_dlp":
+        import yt_dlp as _m
+        globals()["yt_dlp"] = _m
+        return _m
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+class UnsupportedChannelURL(Exception):
+    """博主主页/频道 URL 当前不支持（如抖音主页：yt-dlp 未实现，需 webview）。"""
+
+
+def _douyin_user_hint() -> str:
+    return (
+        "抖音博主主页暂不支持批量采集：yt-dlp 未实现抖音用户页，"
+        "旧版 web/api/v2/aweme/post 接口也已失效。"
+        "请改粘单条视频链接（https://www.douyin.com/video/<id>）或 App 分享口令。"
+    )
 
 
 @lru_cache(maxsize=1)
@@ -81,11 +105,13 @@ def _base_opts(outdir: Path, cookiefile: Path | None) -> dict:
 def fetch_metadata(url: str, outdir: Path) -> dict:
     """仅抓元数据，不下载。"""
     url = canonicalize_url(resolve_short_url(url))
+    if is_douyin_user_url(url):
+        raise UnsupportedChannelURL(_douyin_user_hint())
     platform = detect_platform(url)
     opts = _base_opts(outdir, resolve_cookiefile(platform))
     opts.update(platform_opts(platform))
     opts["skip_download"] = True
-    with _ydl().YoutubeDL(opts) as ydl:
+    with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=False)
     return _normalize(info, platform)
 
@@ -97,6 +123,8 @@ def fetch_channel_videos(channel_url: str, limit: int = 20) -> list[dict]:
     详细元数据由后续逐条 run_collect 补齐。
     """
     channel_url = canonicalize_url(resolve_short_url(channel_url))
+    if is_douyin_user_url(channel_url):
+        raise UnsupportedChannelURL(_douyin_user_hint())
     platform = detect_platform(channel_url)
     opts: dict = {
         "quiet": True,
@@ -111,7 +139,7 @@ def fetch_channel_videos(channel_url: str, limit: int = 20) -> list[dict]:
     if cookiefile:
         opts["cookiefile"] = str(cookiefile)
     opts.update(platform_opts(platform))
-    with _ydl().YoutubeDL(opts) as ydl:
+    with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(channel_url, download=False)
 
     entries = info.get("entries") or []
@@ -161,7 +189,7 @@ def fetch_comments(url: str, limit: int = 100) -> list[dict]:
     if cookiefile:
         opts["cookiefile"] = str(cookiefile)
     opts.update(platform_opts(platform))
-    with _ydl().YoutubeDL(opts) as ydl:
+    with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=False)
     out: list[dict] = []
     for c in (info.get("comments") or [])[: limit * 2]:
@@ -188,6 +216,8 @@ def download_audio(
     on_progress: 收到 0-100 的下载进度百分比（yt-dlp progress hook）。
     """
     url = canonicalize_url(resolve_short_url(url))
+    if is_douyin_user_url(url):
+        raise UnsupportedChannelURL(_douyin_user_hint())
     platform = detect_platform(url)
     opts = _base_opts(outdir, resolve_cookiefile(platform))
     opts.update(platform_opts(platform))
@@ -203,7 +233,7 @@ def download_audio(
                 on_progress(100)
 
         opts["progress_hooks"] = [hook]
-    with _ydl().YoutubeDL(opts) as ydl:
+    with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=True)
         filename = ydl.prepare_filename(info)
     return _normalize(info, platform), filename
@@ -249,6 +279,8 @@ def download_cover(cover_url: str, outdir: Path, name: str) -> str:
 
 def friendly_error(e: Exception) -> str:
     """把 yt-dlp 采集错误转成带解决指引的中文提示。"""
+    if isinstance(e, UnsupportedChannelURL):
+        return str(e)
     msg = str(e)
     low = msg.lower()
     if any(

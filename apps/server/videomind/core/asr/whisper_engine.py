@@ -41,6 +41,17 @@ def transcribe(
 
     device = "cuda" if has_gpu else "cpu"
     compute_type = "float16" if has_gpu else "int8"
+    # 模型已本地缓存时强制离线：避免 HF 不可达（国内常被墙）时 faster-whisper
+    # 在线校验模型把转录无限期卡住。未缓存时不设，正常走下载。
+    try:
+        import os as _os
+        from huggingface_hub.constants import HF_HUB_CACHE
+        if _os.path.isdir(
+            _os.path.join(HF_HUB_CACHE, f"models--Systran--faster-whisper-{model_size}")
+        ):
+            _os.environ["HF_HUB_OFFLINE"] = "1"
+    except Exception:
+        pass
     model = WhisperModel(model_size, device=device, compute_type=compute_type)
     segments_gen, info = model.transcribe(
         audio_path,

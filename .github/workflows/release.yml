@@ -1,0 +1,80 @@
+name: Release
+
+# 打 tag (v*) 自动触发：mac(arm/intel) + windows 各自构建 sidecar + tauri 打包，
+# 产物上传到对应 tag 的 GitHub Release。sidecar 含 native 库，必须在目标 OS 上打。
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-14      # Apple Silicon
+            target: aarch64-apple-darwin
+          - platform: macos-13      # Intel
+            target: x86_64-apple-darwin
+          - platform: windows-latest
+            target: ''
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Rust target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install server deps + PyInstaller
+        run: |
+          cd apps/server
+          python -m pip install -U pip
+          pip install -e ".[all]" pyinstaller
+
+      - name: Build Python sidecar (本机架构)
+        shell: bash
+        run: ./scripts/build_sidecar.sh
+
+      - name: Install frontend deps
+        run: |
+          cd apps/desktop/web
+          npm install --no-audit --no-fund
+          cd ../
+          npm install --no-audit --no-fund
+
+      - name: Build & publish (tauri-action)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: apps/desktop
+          tagName: ${{ github.ref_name }}
+          releaseName: 'VideoMind AI ${{ github.ref_name }}'
+          releaseBody: |
+            ## VideoMind AI ${{ github.ref_name }}
+
+            跨平台桌面应用：视频采集 → ASR 转录 → AI 分析 → 报告生成。
+
+            ### 下载
+            - **macOS (Apple Silicon)** → `*_aarch64.dmg`
+            - **macOS (Intel)** → `*_x64.dmg`
+            - **Windows** → `*_x64-setup.exe` / `*.msi`
+
+            > 未签名：macOS 首次打开需 右键 → 打开；Windows 有 SmartScreen 警告，点「仍要运行」。
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.target && format('--target {0}', matrix.target) || '' }}
