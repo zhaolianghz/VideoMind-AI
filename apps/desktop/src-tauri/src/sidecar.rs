@@ -168,9 +168,11 @@ impl Sidecar {
             .arg(port.to_string())
             .arg("--data-dir")
             .arg(data_dir)
-            // sidecar 侧的父进程看门狗：宿主被强杀/崩溃时自行退出，防僵尸进程
-            .arg("--parent-pid")
-            .arg(std::process::id().to_string());
+            // 宿主看门狗：sidecar 自己读 stdin，本进程一死 → 管道 EOF → 它自杀。
+            // 以前传 pid 让 sidecar 自己 os.kill(pid, 0) 探活，Windows 上那是
+            // TerminateProcess，直接把 sidecar（或宿主）弄死。
+            .arg("--watch-host-stdin")
+            .stdin(Stdio::piped());
         // 子进程输出并入同一份日志：Python traceback / 缺 dll 的报错都在这里
         match log_path(app).and_then(|p| {
             if let Some(d) = p.parent() {
@@ -191,6 +193,8 @@ impl Sidecar {
             .spawn()
             .map_err(|e| io_err(&format!("无法启动 {}：{e}", exe.display())))?;
 
+        // 注意：不要 take()/drop child.stdin —— 写端就存在 Child 里，只要 Child 活着
+        // 管道就开着。take 出来又没用它，管道立刻 EOF，sidecar 会当场退出。
         let mut s = Sidecar {
             port,
             child: Some(child),
