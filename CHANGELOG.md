@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-02-04
+
+### Added
+- **Import local video files** — pick local media via the native file dialog; thumbnails are extracted with ffmpeg, and deleting such a video never touches the user's original file.
+- **Batch delete** in the video library.
+
+### Fixed
+- **Windows blank window on startup** — the sidecar's stdout/stderr now go to `<app data>/sidecar.log` (instead of being discarded), and a failed or crashed sidecar immediately reports its reason on the splash screen instead of silently waiting ~90s and then landing on an empty screen.
+- Render errors no longer leave a black window: an error boundary + a boot-time error handler now show the actual error with a retry button.
+- Splash polling aborted silently if `get_boot_stage` failed.
+
 ## [1.0.1] - 2026-07-26
 
 ### Added

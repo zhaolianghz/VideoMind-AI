@@ -16,6 +16,28 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // 兜底：模块加载失败 / React 挂载前抛错时 #root 会永远空白。
+      // 把错误直接写到页面上，别留个黑窗口没法查。
+      window.addEventListener(
+        'error',
+        function (e) {
+          var r = document.getElementById('root')
+          if (!r || r.childElementCount) return
+          var t = e.target
+          var detail =
+            t && t.tagName
+              ? '资源加载失败: ' + (t.src || t.href || t.tagName)
+              : (e.message || String(e.error)) + '\n' + (e.filename || '') + ':' + (e.lineno || 0)
+          r.innerHTML =
+            '<pre style="padding:24px;color:#ff453a;white-space:pre-wrap;font:12px/1.6 ui-monospace,monospace">' +
+            'VideoMind AI 启动失败\n\n' +
+            detail.replace(/[<>&]/g, '') +
+            '</pre>'
+        },
+        true,
+      )
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

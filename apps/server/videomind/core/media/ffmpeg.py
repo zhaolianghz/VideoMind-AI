@@ -42,6 +42,22 @@ def extract_audio(src, dst) -> str:
     return str(dst)
 
 
+def extract_thumbnail(src, dst, at_sec: float = 1.0) -> bool:
+    """抽一帧做封面（本地导入的视频没有平台封面）。纯音频文件会失败，返回 False。"""
+    try:
+        subprocess.run(
+            [
+                _bin("ffmpeg") or "ffmpeg", "-y", "-ss", f"{max(0.0, at_sec):.2f}",
+                "-i", str(src), "-frames:v", "1", "-vf", "scale=480:-2", str(dst),
+            ],
+            check=True,
+            capture_output=True,
+        )
+    except Exception:
+        return False
+    return Path(dst).is_file()
+
+
 def probe_duration(path) -> float:
     """ffprobe 取时长（秒）。"""
     result = subprocess.run(

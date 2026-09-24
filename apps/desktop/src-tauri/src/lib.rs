@@ -46,7 +46,11 @@ pub fn run() {
                             *state.sidecar.lock().unwrap() = Some(s);
                         }
                     }
-                    Err(e) => eprintln!("[sidecar] 未启动: {}（开发模式走 vite proxy）", e),
+                    Err(e) => {
+                        // 启动失败必须让用户看见：以前只 eprintln，release 无控制台 → 全黑屏干等
+                        sidecar::log_line(&handle, &format!("sidecar 启动失败: {e}"));
+                        sidecar::set_boot_stage(&handle, &format!("error: {e}"));
+                    }
                 });
             }
             // 后台预热抖音匿名 cookie（失败不影响使用，提交任务时会再尝试）

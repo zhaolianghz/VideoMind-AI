@@ -16,6 +16,17 @@ class BatchCollectRequest(BaseModel):
     auto_transcribe: bool = True
 
 
+class BatchDeleteRequest(BaseModel):
+    ids: list[str]
+
+
+class ImportLocalRequest(BaseModel):
+    """本地文件导入：paths 为本机绝对路径（桌面端由原生文件选择框给出）。"""
+
+    paths: list[str]
+    auto_transcribe: bool = True
+
+
 class TranscribeRequest(BaseModel):
     model: str | None = None  # None = 按时长自适应
     language: str | None = None

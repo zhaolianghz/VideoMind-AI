@@ -27,6 +27,25 @@ export const collectBatch = (
     })
     .then((r) => r.data)
 
+export interface ImportLocalResult {
+  created: number
+  skipped: number
+  invalid: string[]
+  ids: string[]
+}
+
+/** 导入本机视频/音频文件（paths 为绝对路径，桌面端由原生文件框给出） */
+export const importLocalVideos = (
+  paths: string[],
+  autoTranscribe = true,
+): Promise<ImportLocalResult> =>
+  api
+    .post<ImportLocalResult>('/videos/import/local', {
+      paths,
+      auto_transcribe: autoTranscribe,
+    })
+    .then((r) => r.data)
+
 export const getVideo = (id: string): Promise<Video> =>
   api.get<Video>(`/videos/${id}`).then((r) => r.data)
 
@@ -44,6 +63,11 @@ export const transcribeVideo = (
 
 export const deleteVideo = (id: string): Promise<void> =>
   api.delete(`/videos/${id}`).then(() => undefined)
+
+export const deleteVideos = (ids: string[]): Promise<{ deleted: number; not_found: string[] }> =>
+  api
+    .post<{ deleted: number; not_found: string[] }>('/videos/delete/batch', { ids })
+    .then((r) => r.data)
 
 export const exportVideosCsv = (): Promise<{ path: string; rows: number; scored: number }> =>
   api

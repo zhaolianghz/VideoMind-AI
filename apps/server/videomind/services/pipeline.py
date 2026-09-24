@@ -166,6 +166,52 @@ def run_collect(
         run_transcribe(video_id)
 
 
+def run_import_local(video_id: str, auto_transcribe: bool = True) -> None:
+    """本地文件导入：ffprobe 探时长 + 抽一帧当封面，然后接上既有流水线。
+
+    媒体文件保持在用户原位置（不复制，避免占双份磁盘），Video.media_path
+    直接指向它；删除视频时 _cascade_delete 只清应用自己目录下的文件。
+    """
+    from pathlib import Path as _Path
+
+    with Session(engine) as s:
+        video = s.get(Video, video_id)
+        if not video or not video.media_path:
+            return
+        try:
+            src = _Path(video.media_path)
+            if not src.is_file():
+                raise RuntimeError(f"文件不存在或已移动：{src}")
+            ffmpeg.ensure_available()
+            video.status = "collecting"
+            video.progress = 20
+            s.add(video)
+            s.commit()
+
+            video.duration_sec = int(ffmpeg.probe_duration(src))
+            # 取 1s 处的帧（片头黑帧概率低）；时长不足则取 0s
+            cover = covers_dir() / f"{video.id}.jpg"
+            at = 1.0 if video.duration_sec > 2 else 0.0
+            if ffmpeg.extract_thumbnail(src, cover, at):
+                video.cover_path = str(cover)
+            video.status = "collected"
+            video.progress = 100
+            video.error = ""
+        except Exception as e:
+            video.status = "failed"
+            video.error = str(e)
+            video.updated_at = _utcnow()
+            s.add(video)
+            s.commit()
+            return
+        video.updated_at = _utcnow()
+        s.add(video)
+        s.commit()
+
+    if auto_transcribe:
+        run_transcribe(video_id)
+
+
 def run_extract_audio(video_id: str) -> None:
     with Session(engine) as s:
         video = s.get(Video, video_id)

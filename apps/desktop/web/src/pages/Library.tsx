@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { deleteVideo, extractAudio, fetchComments, getComments, listVideos, recollectVideo, transcribeVideo } from '../api/videos'
+import { deleteVideo, deleteVideos, extractAudio, fetchComments, getComments, listVideos, recollectVideo, transcribeVideo } from '../api/videos'
 import type { VideoComment } from '../api/videos'
 import { analyzeCreator, listCreators } from '../api/creators'
 import { getTranscript, updateTranscript } from '../api/transcripts'
@@ -101,6 +101,8 @@ export function Library() {
   const [activeId, setActiveId] = useState<string | null>(null)
   const [analyzeId, setAnalyzeId] = useState<string | null>(null)
   const [confirmDelId, setConfirmDelId] = useState<string | null>(null)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [confirmBatch, setConfirmBatch] = useState(false)
   const [commentsFetching, setCommentsFetching] = useState<string | null>(null)
   const [commentsOpenId, setCommentsOpenId] = useState<string | null>(null)
   const [q, setQ] = useState('')
@@ -168,6 +170,38 @@ export function Library() {
       (!kw ||
         [v.title, v.author, v.category, v.tags, v.url].join(' ').toLowerCase().includes(kw)),
   )
+
+  // —— 批量选择 / 批量删除 —— 
+  const toggleSelect = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+
+  const shownIds = shown.map((v) => v.id)
+  const selectedInShown = shownIds.filter((id) => selected.has(id))
+  const allShownSelected = shownIds.length > 0 && selectedInShown.length === shownIds.length
+  const toggleSelectAll = () =>
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (allShownSelected) shownIds.forEach((id) => next.delete(id))
+      else shownIds.forEach((id) => next.add(id))
+      return next
+    })
+
+  const doBatchDelete = () =>
+    deleteVideos([...selected])
+      .then(() => {
+        setSelected(new Set())
+        setConfirmBatch(false)
+        load()
+      })
+      .catch((e: unknown) => {
+        const anyE = e as { response?: { data?: { detail?: string } } }
+        alert(anyE?.response?.data?.detail ?? String(e))
+      })
 
   return (
     <div className="max-w-5xl">
@@ -288,6 +322,51 @@ export function Library() {
           videos={videos.filter((v) => v.creator_id === creatorId)}
         />
       )}
+      {!loading && shown.length > 0 && (
+        <div className="mb-3 flex items-center gap-3 px-1 text-sm">
+          <label className="flex cursor-pointer select-none items-center gap-2 text-secondary">
+            <input
+              type="checkbox"
+              checked={allShownSelected}
+              onChange={toggleSelectAll}
+              className="h-4 w-4 accent-accent"
+            />
+            {t('library.selectAll')}
+          </label>
+          <span className="text-xs text-tertiary">
+            {selectedInShown.length}/{shownIds.length}
+          </span>
+          <div className="ml-auto flex items-center gap-2">
+            {confirmBatch ? (
+              <>
+                <span className="text-xs text-danger">
+                  {t('library.batchDeleteConfirm').replace('{n}', String(selected.size))}
+                </span>
+                <button
+                  onClick={() => setConfirmBatch(false)}
+                  className="rounded-lg border border-app px-2.5 py-1 text-xs text-secondary hover:bg-fill"
+                >
+                  {t('library.cancel')}
+                </button>
+                <button
+                  onClick={doBatchDelete}
+                  className="rounded-lg bg-danger px-2.5 py-1 text-xs text-on-accent hover:bg-danger/90"
+                >
+                  {t('library.confirmDelete')}
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setConfirmBatch(true)}
+                disabled={selected.size === 0}
+                className="rounded-lg border border-danger/30 px-2.5 py-1 text-xs text-danger hover:bg-danger/10 disabled:opacity-40"
+              >
+                {t('library.batchDelete')}（{selected.size}）
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       {loading ? (
         <div className="text-secondary">{t('library.loading')}</div>
       ) : videos.length === 0 ? (
@@ -310,6 +389,13 @@ export function Library() {
             return (
               <div key={v.id} id={`video-row-${v.id}`} className="vm-card">
                 <div className="flex items-center gap-4 p-4">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(v.id)}
+                    onChange={() => toggleSelect(v.id)}
+                    className="h-4 w-4 shrink-0 accent-accent"
+                    aria-label="select"
+                  />
                   <img
                     src={coverSrc(v)}
                     alt=""
@@ -350,7 +436,10 @@ export function Library() {
                       ) : (
                         v.author
                       )}
-                      {' · '}{fmtDur(v.duration_sec)} · {v.view_count.toLocaleString()} {t('library.views')}
+                      {' · '}{fmtDur(v.duration_sec)}
+                      {/* 本地导入的视频没有播放量等平台数据 */}
+                      {v.platform !== 'local' &&
+                        ` · ${v.view_count.toLocaleString()} ${t('library.views')}`}
                     </div>
                     {busy && <ProgressBar pct={v.progress ?? 0} />}
                     {v.status === 'failed' && v.error && (

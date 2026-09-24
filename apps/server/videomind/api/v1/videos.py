@@ -17,7 +17,9 @@ from ...db.session import get_session
 from ...models.video import Video
 from ...schemas.video import (
     BatchCollectRequest,
+    BatchDeleteRequest,
     CollectRequest,
+    ImportLocalRequest,
     TranscribeRequest,
     VideoRead,
 )
@@ -95,6 +97,59 @@ def collect_batch(
     return {"created": len(ids), "skipped": skipped, "ids": ids}
 
 
+#: 本地导入接受的容器格式（视频 + 常见音频，音频走同一条 ASR 流水线）
+LOCAL_MEDIA_EXTS = {
+    ".mp4", ".mov", ".mkv", ".avi", ".flv", ".webm", ".wmv", ".m4v", ".ts", ".mpg",
+    ".mpeg", ".m2ts",
+    ".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg", ".opus", ".wma",
+}
+
+
+@router.post("/import/local", status_code=201)
+def import_local(
+    req: ImportLocalRequest,
+    background: BackgroundTasks,
+    session: Session = Depends(get_session),
+) -> dict:
+    """导入本机视频/音频文件：入库后走 探元数据 → 抽音频 → 转录 流水线。
+
+    文件留在原位置（不复制），url 用 file:// 形式作唯一键，重复导入同一路径
+    直接跳过。返回 created/skipped/invalid 便于前端提示。
+    """
+    ids: list[str] = []
+    skipped = 0
+    invalid: list[str] = []
+    seen: set[str] = set()
+    for raw in req.paths:
+        p = Path(raw).expanduser()
+        if not p.is_file() or p.suffix.lower() not in LOCAL_MEDIA_EXTS:
+            invalid.append(raw)
+            continue
+        url = p.resolve().as_uri()
+        if url in seen or session.exec(select(Video).where(Video.url == url)).first():
+            skipped += 1
+            continue
+        seen.add(url)
+        video = Video(
+            url=url,
+            platform="local",
+            title=p.stem,
+            media_path=str(p.resolve()),
+            status="collecting",
+        )
+        session.add(video)
+        session.commit()
+        session.refresh(video)
+        background.add_task(pipeline.run_import_local, video.id, req.auto_transcribe)
+        ids.append(video.id)
+    if not ids and invalid and not skipped:
+        raise HTTPException(
+            status_code=400,
+            detail="没有可导入的文件：请选择视频或音频文件（mp4/mov/mkv/mp3/wav 等）",
+        )
+    return {"created": len(ids), "skipped": skipped, "invalid": invalid, "ids": ids}
+
+
 @router.post("/{video_id}/recollect", response_model=VideoRead)
 def recollect(
     video_id: str,
@@ -111,7 +166,11 @@ def recollect(
     session.add(video)
     session.commit()
     session.refresh(video)
-    background.add_task(pipeline.run_collect, video.id, download)
+    # 本地导入的视频没有可采集的 URL（file://），重试走本地导入流水线
+    if video.platform == "local":
+        background.add_task(pipeline.run_import_local, video.id, True)
+    else:
+        background.add_task(pipeline.run_collect, video.id, download)
     return video
 
 
@@ -280,23 +339,39 @@ def transcribe(
     return video
 
 
-@router.delete("/{video_id}", status_code=204)
-def delete_video(video_id: str, session: Session = Depends(get_session)) -> None:
-    """删除视频及其全部关联：本地文件（媒体/音频/封面/字幕文件）+ 字幕/分析记录。"""
+def _is_app_owned(path: str) -> bool:
+    """文件是否由应用自己产出（在媒体/封面/字幕目录下）。
+
+    本地导入的视频 media_path 指向用户自己的文件（原位引用，未复制），
+    删除记录时绝不能动它 —— 只清应用目录下的产物。
+    """
+    from ...utils.paths import covers_dir, media_dir, subtitles_dir
+
+    try:
+        p = Path(path).resolve()
+    except OSError:
+        return False
+    for d in (media_dir(), covers_dir(), subtitles_dir()):
+        if p.is_relative_to(Path(d).resolve()):
+            return True
+    return False
+
+
+def _cascade_delete(session: Session, video: Video) -> None:
+    """删除视频及其全部关联：应用产出的文件（媒体/音频/封面/字幕）+ 字幕/分析记录。
+
+    用户原位导入的本地文件不删（见 _is_app_owned）。
+    """
     from ...models.analysis import Analysis
     from ...models.transcript import Transcript
 
-    video = session.get(Video, video_id)
-    if not video:
-        raise HTTPException(status_code=404, detail="video not found")
-
     # 磁盘文件
     for p in (video.media_path, video.audio_path, video.cover_path):
-        if p:
+        if p and _is_app_owned(p):
             Path(p).unlink(missing_ok=True)
     # 字幕记录 + srt/vtt 文件
     for t in session.exec(
-        select(Transcript).where(Transcript.video_id == video_id)
+        select(Transcript).where(Transcript.video_id == video.id)
     ).all():
         for p in (t.srt_path, t.vtt_path):
             if p:
@@ -304,9 +379,36 @@ def delete_video(video_id: str, session: Session = Depends(get_session)) -> None
         session.delete(t)
     # 分析记录
     for a in session.exec(
-        select(Analysis).where(Analysis.video_id == video_id)
+        select(Analysis).where(Analysis.video_id == video.id)
     ).all():
         session.delete(a)
 
     session.delete(video)
+
+
+@router.delete("/{video_id}", status_code=204)
+def delete_video(video_id: str, session: Session = Depends(get_session)) -> None:
+    """删除单个视频及其全部关联。"""
+    video = session.get(Video, video_id)
+    if not video:
+        raise HTTPException(status_code=404, detail="video not found")
+    _cascade_delete(session, video)
     session.commit()
+
+
+@router.post("/delete/batch")
+def delete_videos_batch(
+    req: BatchDeleteRequest, session: Session = Depends(get_session)
+) -> dict:
+    """批量删除视频：只删存在的，返回实际删除数与未找到的 id。"""
+    deleted = 0
+    not_found: list[str] = []
+    for vid in req.ids:
+        video = session.get(Video, vid)
+        if not video:
+            not_found.append(vid)
+            continue
+        _cascade_delete(session, video)
+        deleted += 1
+    session.commit()
+    return {"deleted": deleted, "not_found": not_found}

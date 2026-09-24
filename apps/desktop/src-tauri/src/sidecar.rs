@@ -26,6 +26,29 @@ fn io_err(msg: &str) -> std::io::Error {
     std::io::Error::new(std::io::ErrorKind::Other, msg)
 }
 
+/// 启动日志路径：<app_data_dir>/sidecar.log
+pub fn log_path(app: &AppHandle) -> Option<PathBuf> {
+    Some(app.path().app_data_dir().ok()?.join("sidecar.log"))
+}
+
+/// 追加一行启动日志。release 构建是 windows_subsystem = "windows"（无控制台），
+/// eprintln 全部消失，出问题只能靠这份文件诊断。
+pub fn log_line(app: &AppHandle, msg: &str) {
+    use std::io::Write;
+
+    let Some(path) = log_path(app) else { return };
+    if let Some(dir) = path.parent() {
+        let _ = fs::create_dir_all(dir);
+    }
+    if let Ok(mut f) = fs::OpenOptions::new().create(true).append(true).open(&path) {
+        let secs = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let _ = writeln!(f, "[{secs}] {msg}");
+    }
+}
+
 /// sidecar 解压后位置: app_data_dir/sidecar/videomind-sidecar/<exe>
 fn extracted_exe(app: &AppHandle) -> Option<PathBuf> {
     let base = app.path().app_data_dir().ok()?;
@@ -85,6 +108,7 @@ fn ensure_extracted(app: &AppHandle) -> std::io::Result<PathBuf> {
     let marker = dest.join(".sidecar-fingerprint");
 
     if exe.exists() && fs::read_to_string(&marker).ok().as_deref() == Some(&fingerprint) {
+        log_line(app, "压缩包未变，跳过解压");
         return Ok(exe); // 已解压且与当前压缩包一致
     }
 
@@ -95,22 +119,25 @@ fn ensure_extracted(app: &AppHandle) -> std::io::Result<PathBuf> {
         let _ = fs::remove_dir_all(&unpacked);
     }
     fs::create_dir_all(&dest)?;
-    eprintln!(
-        "[sidecar] 解压 {} → {}",
-        archive.display(),
-        dest.display()
+    // 首启/升级后这一步在 Windows 上可能被 Defender 拖到几分钟，前端 splash 靠
+    // boot_stage=extracting 提示；日志里留时间点便于判断到底卡在哪。
+    log_line(
+        app,
+        &format!("开始解压 {} → {}", archive.display(), dest.display()),
     );
     let f = fs::File::open(&archive)?;
     let gz = flate2::read::GzDecoder::new(f);
     let mut ar = tar::Archive::new(gz);
     ar.unpack(&dest)?;
     fs::write(&marker, fingerprint)?;
+    log_line(app, "解压完成");
     set_boot_stage(app, "starting");
     Ok(exe)
 }
 
-/// 把启动阶段写进全局状态，供前端 splash 轮询展示（extracting / starting / ready）
-fn set_boot_stage(app: &AppHandle, stage: &str) {
+/// 把启动阶段写进全局状态，供前端 splash 轮询展示。
+/// 约定 `error: <msg>` 表示后端起不来，前端见到即停止等待并报错。
+pub fn set_boot_stage(app: &AppHandle, stage: &str) {
     if let Some(state) = app.try_state::<crate::AppState>() {
         if let Ok(mut s) = state.boot_stage.lock() {
             *s = stage.to_string();
@@ -131,27 +158,49 @@ impl Sidecar {
         let port = find_free_port()
             .ok_or_else(|| io_err("无可用端口"))?;
 
-        let child = Command::new(&exe)
-            .arg("--port")
+        log_line(
+            app,
+            &format!("启动 {} --port {port} --data-dir {data_dir}", exe.display()),
+        );
+
+        let mut cmd = Command::new(&exe);
+        cmd.arg("--port")
             .arg(port.to_string())
             .arg("--data-dir")
             .arg(data_dir)
             // sidecar 侧的父进程看门狗：宿主被强杀/崩溃时自行退出，防僵尸进程
             .arg("--parent-pid")
-            .arg(std::process::id().to_string())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()?;
+            .arg(std::process::id().to_string());
+        // 子进程输出并入同一份日志：Python traceback / 缺 dll 的报错都在这里
+        match log_path(app).and_then(|p| {
+            if let Some(d) = p.parent() {
+                let _ = fs::create_dir_all(d);
+            }
+            fs::OpenOptions::new().create(true).append(true).open(p).ok()
+        }) {
+            Some(f) => {
+                cmd.stdout(Stdio::from(f.try_clone()?));
+                cmd.stderr(Stdio::from(f));
+            }
+            None => {
+                cmd.stdout(Stdio::null()).stderr(Stdio::null());
+            }
+        }
 
-        let s = Sidecar {
+        let child = cmd
+            .spawn()
+            .map_err(|e| io_err(&format!("无法启动 {}：{e}", exe.display())))?;
+
+        let mut s = Sidecar {
             port,
             child: Some(child),
         };
         s.wait_ready(Duration::from_secs(60))?;
+        log_line(app, &format!("sidecar 就绪: http://127.0.0.1:{port}"));
         Ok(s)
     }
 
-    fn wait_ready(&self, timeout: Duration) -> std::io::Result<()> {
+    fn wait_ready(&mut self, timeout: Duration) -> std::io::Result<()> {
         let url = format!("http://127.0.0.1:{}/api/v1/system/healthz", self.port);
         let client = reqwest::blocking::Client::builder()
             .timeout(Duration::from_secs(2))
@@ -159,6 +208,14 @@ impl Sidecar {
             .map_err(|e| io_err(&format!("reqwest: {e}")))?;
         let start = Instant::now();
         while start.elapsed() < timeout {
+            // 进程已经死了（缺 dll / 端口冲突 / 启动即崩）→ 立刻失败，别白等满 60s
+            if let Some(child) = self.child.as_mut() {
+                if let Ok(Some(status)) = child.try_wait() {
+                    return Err(io_err(&format!(
+                        "sidecar 进程已退出（{status}），详见 sidecar.log"
+                    )));
+                }
+            }
             if let Ok(resp) = client.get(&url).send() {
                 if resp.status().is_success() {
                     return Ok(());
@@ -166,7 +223,7 @@ impl Sidecar {
             }
             std::thread::sleep(Duration::from_millis(500));
         }
-        Err(io_err("sidecar 健康检查超时"))
+        Err(io_err("sidecar 健康检查超时（60s）"))
     }
 
     pub fn api_base(&self) -> String {

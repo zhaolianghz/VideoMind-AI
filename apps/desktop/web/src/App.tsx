@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Component, useEffect, useState, type ReactNode } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { invoke } from '@tauri-apps/api/core'
 import logoBilibili from '@lobehub/icons-static-svg/icons/bilibili-color.svg'
@@ -19,50 +19,82 @@ import { ThemeProvider } from './theme'
 export default function App() {
   const [ready, setReady] = useState(false)
   const [bootStage, setBootStage] = useState('starting')
+  const [bootError, setBootError] = useState<string | null>(null)
   useEffect(() => {
     let cancelled = false
     let tries = 0
-    const poll = () => {
+    // 生产(Tauri): 轮询 sidecar API base（sidecar 后台启动中可能暂返回空）
+    // 开发(浏览器): invoke 抛错 → 用 vite proxy 的 /api/v1
+    const tick = async () => {
       if (cancelled) return
-      // 生产(Tauri): 轮询 sidecar API base（sidecar 后台启动中可能暂返回空）
-      // 开发(浏览器): invoke 抛错 → 用 vite proxy 的 /api/v1
-      invoke<string | undefined>('get_api_base')
-        .then((base) => {
-          if (cancelled) return
-          if (base) {
-            api.defaults.baseURL = base
-            setReady(true)
-          } else if (tries++ < 90) {
-            // 升级后首启需解压组件（约半分钟），把阶段同步到 splash 文案
-            invoke<string>('get_boot_stage')
-              .then((s) => !cancelled && setBootStage(s))
-              .catch(() => undefined)
-            setTimeout(poll, 1000) // sidecar 启动中，1s 后重试（最多 90s）
-          } else {
-            setReady(true) // 超时降级
-          }
-        })
-        .catch(() => {
-          if (!cancelled) setReady(true) // 非 Tauri 环境
-        })
+      let base: string | undefined
+      try {
+        base = await invoke<string | undefined>('get_api_base')
+      } catch {
+        setReady(true) // 非 Tauri 环境
+        return
+      }
+      if (cancelled) return
+      if (base) {
+        api.defaults.baseURL = base
+        setReady(true)
+        return
+      }
+      // 启动阶段：'error: xxx' = 后端起不来，立刻停下报错，别让用户干等满 90s
+      // 升级后首启需解压组件（约半分钟），把阶段同步到 splash 文案
+      const stage = await invoke<string>('get_boot_stage').catch(() => 'starting')
+      if (cancelled) return
+      if (stage.startsWith('error:')) {
+        setBootError(stage.slice('error:'.length).trim())
+        return
+      }
+      setBootStage(stage)
+      if (tries++ < 90) setTimeout(tick, 1000) // sidecar 启动中，1s 后重试（最多 90s）
+      else setReady(true) // 超时降级
     }
-    poll()
+    tick()
     return () => {
       cancelled = true
     }
   }, [])
 
-  // Theme + i18n 包裹全部内容，让加载态也能被翻译 / 应用主题
+  // Theme + i18n 包裹全部内容，让加载态 / 错误页也能被翻译 / 应用主题
   return (
     <ThemeProvider>
       <I18nProvider>
-        <AppShell ready={ready} bootStage={bootStage} />
+        <ErrorBoundary>
+          <AppShell ready={ready} bootStage={bootStage} bootError={bootError} />
+        </ErrorBoundary>
       </I18nProvider>
     </ThemeProvider>
   )
 }
 
-function AppShell({ ready, bootStage }: { ready: boolean; bootStage: string }) {
+/** 渲染期抛错的安全网：没有它 React 会卸载整棵树 → 全黑窗口，什么线索都没有 */
+class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state: { error: Error | null } = { error: null }
+
+  static getDerivedStateFromError(error: Error) {
+    return { error }
+  }
+
+  render() {
+    if (!this.state.error) return this.props.children
+    const e = this.state.error
+    return <FailScreen titleKey="common.crashTitle" detail={`${e.message}\n\n${e.stack ?? ''}`} />
+  }
+}
+
+function AppShell({
+  ready,
+  bootStage,
+  bootError,
+}: {
+  ready: boolean
+  bootStage: string
+  bootError: string | null
+}) {
+  if (bootError) return <FailScreen titleKey="common.bootFailed" detail={bootError} log />
   if (!ready) {
     return <LoadingScreen extracting={bootStage === 'extracting'} />
   }
@@ -163,6 +195,34 @@ const PLATFORM_GLYPHS: Array<{ key: string; node: React.ReactNode }> = [
 ]
 
 const ORBIT_PERIOD = 26 // 公转一圈秒数，与 CSS vm-orbit-run 保持一致
+
+/** 启动失败 / 界面崩溃的统一死屏：把黑窗口换成能读的错误 + 重试按钮 */
+function FailScreen({
+  titleKey,
+  detail,
+  log,
+}: {
+  titleKey: string
+  detail: string
+  log?: boolean
+}) {
+  const { t } = useI18n()
+  return (
+    <div className="vm-bg flex h-screen flex-col items-center justify-center gap-4 p-10">
+      <div className="text-lg font-semibold text-danger">{t(titleKey)}</div>
+      <pre className="max-h-72 max-w-2xl overflow-auto whitespace-pre-wrap rounded-xl border border-app bg-surface p-4 text-left text-xs text-secondary">
+        {detail}
+      </pre>
+      {log && <div className="text-xs text-tertiary">{t('common.logHint')}</div>}
+      <button
+        className="rounded-lg bg-accent px-4 py-2 text-sm text-white"
+        onClick={() => window.location.reload()}
+      >
+        {t('common.retry')}
+      </button>
+    </div>
+  )
+}
 
 /**
  * 启动等待屏：中心霓虹猫头鹰（洞察 = VideoMind 的隐喻），外圈各视频平台

@@ -1,12 +1,13 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { isAxiosError } from 'axios'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
-import { collectBatch, collectVideo } from '../api/videos'
+import { getCurrentWebview } from '@tauri-apps/api/webview'
+import { collectBatch, collectVideo, importLocalVideos } from '../api/videos'
 import { collectChannel } from '../api/creators'
 import { isDouyinLink } from '../api/platforms'
-import { isTauri } from '../utils/tauri'
+import { isTauri, MEDIA_EXTENSIONS, pickMediaFiles } from '../utils/tauri'
 import { useI18n } from '../i18n'
 
 /** iOS 风格开关 + 文案 */
@@ -47,8 +48,10 @@ function Switch({ checked, disabled, onChange, children }: {
 export function NewTask() {
   const { t } = useI18n()
   const navigate = useNavigate()
-  const [mode, setMode] = useState<'single' | 'batch' | 'channel'>('single')
+  const [mode, setMode] = useState<'single' | 'batch' | 'channel' | 'local'>('single')
   const [url, setUrl] = useState('')
+  const [localPaths, setLocalPaths] = useState<string[]>([])
+  const [dragOver, setDragOver] = useState(false)
   const [batchText, setBatchText] = useState('')
   const [channelUrl, setChannelUrl] = useState('')
   const [channelLimit, setChannelLimit] = useState(20)
@@ -85,6 +88,25 @@ export function NewTask() {
         return
       }
       collectBatch(batchUrls, download, autoTranscribe).then(done).catch(fail).finally(fin)
+    } else if (mode === 'local') {
+      if (localPaths.length === 0) {
+        setSubmitting(false)
+        return
+      }
+      importLocalVideos(localPaths, autoTranscribe)
+        .then((r) => {
+          if (r.created === 0) {
+            setError(
+              r.skipped > 0
+                ? t('newTask.localAllSkipped')
+                : t('newTask.localNoValid'),
+            )
+            return
+          }
+          done()
+        })
+        .catch(fail)
+        .finally(fin)
     } else {
       if (!channelUrl.trim()) {
         setSubmitting(false)
@@ -165,8 +187,61 @@ export function NewTask() {
     }
   }
 
+  // 原生文件选择框（仅桌面端：后端按绝对路径读文件，浏览器给不出真实路径）
+  const pickFiles = async () => {
+    if (!isTauri()) {
+      setError(t('newTask.localNeedDesktop'))
+      return
+    }
+    const picked = await pickMediaFiles()
+    if (picked.length === 0) return
+    setError(null)
+    setLocalPaths((prev) => [...new Set([...prev, ...picked])])
+  }
+
+  // 拖拽入窗：Tauri 的 drag-drop 事件带真实文件路径（HTML5 的 File 对象没有）
+  useEffect(() => {
+    if (mode !== 'local' || !isTauri()) return
+    let unlisten: (() => void) | undefined
+    let cancelled = false
+    void getCurrentWebview()
+      .onDragDropEvent((ev) => {
+        if (ev.payload.type === 'over') {
+          setDragOver(true)
+        } else if (ev.payload.type === 'drop') {
+          setDragOver(false)
+          const accepted = ev.payload.paths.filter((p) =>
+            MEDIA_EXTENSIONS.includes(p.split('.').pop()?.toLowerCase() ?? ''),
+          )
+          if (accepted.length === 0) {
+            setError(t('newTask.localNoValid'))
+            return
+          }
+          setError(null)
+          setLocalPaths((prev) => [...new Set([...prev, ...accepted])])
+        } else {
+          setDragOver(false)
+        }
+      })
+      .then((un) => {
+        if (cancelled) un()
+        else unlisten = un
+      })
+    return () => {
+      cancelled = true
+      unlisten?.()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode])
+
   const canSubmit = !submitting && (
-    mode === 'single' ? !!url.trim() : mode === 'batch' ? batchUrls.length > 0 : !!channelUrl.trim()
+    mode === 'single'
+      ? !!url.trim()
+      : mode === 'batch'
+        ? batchUrls.length > 0
+        : mode === 'local'
+          ? localPaths.length > 0
+          : !!channelUrl.trim()
   )
   const submitLabel = submitting
     ? t('newTask.submitting')
@@ -174,7 +249,9 @@ export function NewTask() {
       ? t('newTask.startCollect')
       : mode === 'batch'
         ? `${t('newTask.batchCollect')} ${batchUrls.length}`
-        : `${t('newTask.channelCollect')} ${channelLimit} ${t('newTask.items')}`
+        : mode === 'local'
+          ? `${t('newTask.localImport')} ${localPaths.length}`
+          : `${t('newTask.channelCollect')} ${channelLimit} ${t('newTask.items')}`
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col items-center pt-10">
@@ -186,7 +263,7 @@ export function NewTask() {
 
       {/* 模式切换：分段控件 */}
       <div className="vm-reveal mt-8 inline-flex rounded-full bg-fill p-1" style={{ animationDelay: '60ms' }}>
-        {(['single', 'batch', 'channel'] as const).map((m) => (
+        {(['single', 'batch', 'channel', 'local'] as const).map((m) => (
           <button
             key={m}
             onClick={() => setMode(m)}
@@ -196,7 +273,7 @@ export function NewTask() {
                 : 'text-secondary hover:text-primary'
             }`}
           >
-            {m === 'single' ? t('newTask.single') : m === 'batch' ? t('newTask.batch') : t('newTask.channel')}
+            {t('newTask.' + m)}
           </button>
         ))}
       </div>
@@ -227,6 +304,50 @@ export function NewTask() {
               )}{batchUrls.length > 0 ? ' ' : '0 '}
               {t('newTask.validUrls')}
             </div>
+          </div>
+        ) : mode === 'local' ? (
+          <div>
+            <button
+              type="button"
+              onClick={pickFiles}
+              className={`flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-6 py-12 transition-colors ${
+                dragOver
+                  ? 'border-accent bg-accent/10'
+                  : 'border-app hover:border-accent/50 hover:bg-fill'
+              }`}
+            >
+              <span className="text-sm font-medium text-primary">
+                {dragOver ? t('newTask.localDropNow') : t('newTask.localPick')}
+              </span>
+              <span className="text-xs text-tertiary">{t('newTask.localHint')}</span>
+            </button>
+            {localPaths.length > 0 && (
+              <div className="mt-3 max-h-52 space-y-1 overflow-auto">
+                {localPaths.map((p) => (
+                  <div
+                    key={p}
+                    className="flex items-center gap-2 rounded-lg bg-fill px-3 py-1.5 text-xs"
+                  >
+                    <span className="truncate font-mono text-secondary" title={p}>
+                      {p.split(/[/\\]/).pop()}
+                    </span>
+                    <button
+                      onClick={() => setLocalPaths((prev) => prev.filter((x) => x !== p))}
+                      className="ml-auto shrink-0 text-tertiary hover:text-danger"
+                      aria-label="remove"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                <div className="pt-1 text-right font-mono text-xs text-tertiary">
+                  <span className="font-bold" style={{ color: 'var(--viz-1)' }}>
+                    {localPaths.length}
+                  </span>{' '}
+                  {t('newTask.localSelected')}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div>
@@ -262,10 +383,17 @@ export function NewTask() {
         style={{ animationDelay: '180ms' }}
       >
         <div className="flex flex-col gap-3">
-          <Switch checked={download} onChange={setDownload}>
-            {t('newTask.download')}
-          </Switch>
-          <Switch checked={autoTranscribe} onChange={setAutoTranscribe} disabled={!download}>
+          {/* 本地导入没有「下载」这一步（文件已在本机） */}
+          {mode !== 'local' && (
+            <Switch checked={download} onChange={setDownload}>
+              {t('newTask.download')}
+            </Switch>
+          )}
+          <Switch
+            checked={autoTranscribe}
+            onChange={setAutoTranscribe}
+            disabled={mode !== 'local' && !download}
+          >
             {t('newTask.autoTranscribe')}
           </Switch>
         </div>
