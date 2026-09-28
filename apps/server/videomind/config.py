@@ -29,8 +29,13 @@ class Settings(BaseSettings):
     port: int = 18791
     data_dir: str = _default_data_dir()
     database_url: str = ""  # 空 = 用 SQLite at data_dir/videomind.db
+    # Tauri webview 的 origin：macOS/Linux 是 tauri://localhost，
+    # Windows 是 http://tauri.localhost（WebView2 不支持自定义 scheme）。
+    # 漏了 Windows 那个 → 生产环境所有 API 被 CORS 挡掉，前端只看到
+    # axios 的 "Network Error"（后端其实是活的）。
     cors_origins: str = (
-        "http://localhost:1420,http://localhost:5173,tauri://localhost"
+        "http://localhost:1420,http://localhost:5173,tauri://localhost,"
+        "http://tauri.localhost,https://tauri.localhost"
     )
 
     @property
