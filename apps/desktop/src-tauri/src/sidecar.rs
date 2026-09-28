@@ -158,21 +158,28 @@ impl Sidecar {
         let port = find_free_port()
             .ok_or_else(|| io_err("无可用端口"))?;
 
+        let port_arg = port.to_string();
+        // 完整命令行（含看门狗 flag）写进日志：出问题时第一眼就能确认跑的是哪个包。
+        // 上次就是因为没打这个 flag，测试的人拿到的是旧包还是新包无从判断。
+        let sidecar_args = [
+            "--port",
+            port_arg.as_str(),
+            "--data-dir",
+            data_dir,
+            // 宿主看门狗：sidecar 自己读 stdin，本进程一死 → 管道 EOF → 它自杀。
+            // 以前传 pid 让 sidecar 自己 os.kill(pid, 0) 探活，而 Windows 上
+            // CTRL_C_EVENT == 0，那是 GenerateConsoleCtrlEvent —— 等于定期给
+            // 父进程的控制台组广播 Ctrl+C（sidecar 自己挨一下就是 KeyboardInterrupt，
+            // 发不出去就是 OSError → 自杀）。
+            "--watch-host-stdin",
+        ];
         log_line(
             app,
-            &format!("启动 {} --port {port} --data-dir {data_dir}", exe.display()),
+            &format!("启动 {} {}", exe.display(), sidecar_args.join(" ")),
         );
 
         let mut cmd = Command::new(&exe);
-        cmd.arg("--port")
-            .arg(port.to_string())
-            .arg("--data-dir")
-            .arg(data_dir)
-            // 宿主看门狗：sidecar 自己读 stdin，本进程一死 → 管道 EOF → 它自杀。
-            // 以前传 pid 让 sidecar 自己 os.kill(pid, 0) 探活，Windows 上那是
-            // TerminateProcess，直接把 sidecar（或宿主）弄死。
-            .arg("--watch-host-stdin")
-            .stdin(Stdio::piped());
+        cmd.args(sidecar_args).stdin(Stdio::piped());
         // 子进程输出并入同一份日志：Python traceback / 缺 dll 的报错都在这里
         match log_path(app).and_then(|p| {
             if let Some(d) = p.parent() {
