@@ -1,7 +1,9 @@
 name: Release
 
-# 打 tag (v*) 自动触发：mac(arm/intel) + windows 各自构建 sidecar + tauri 打包，
+# 打 tag (v*) 自动触发：mac(Apple Silicon) + windows 各自构建 sidecar + tauri 打包，
 # 产物上传到对应 tag 的 GitHub Release。sidecar 含 native 库，必须在目标 OS 上打。
+# 不支持 Intel Mac：GitHub 免费 runner 已无 x86_64 macOS（macos-13 于 2025-12 下线），
+# 如需恢复需改用付费的 macos-*-large runner。
 on:
   push:
     tags: ['v*']
@@ -18,8 +20,6 @@ jobs:
         include:
           - platform: macos-14      # Apple Silicon
             target: aarch64-apple-darwin
-          - platform: macos-13      # Intel
-            target: x86_64-apple-darwin
           - platform: windows-latest
             target: ''
     runs-on: ${{ matrix.platform }}
@@ -71,7 +71,6 @@ jobs:
 
             ### 下载
             - **macOS (Apple Silicon)** → `*_aarch64.dmg`
-            - **macOS (Intel)** → `*_x64.dmg`
             - **Windows** → `*_x64-setup.exe` / `*.msi`
 
             > 未签名：macOS 首次打开需 右键 → 打开；Windows 有 SmartScreen 警告，点「仍要运行」。
